@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Soirée Photos</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="app">
+    <header class="header">
+      <div class="header-top">
+        <div class="header-main">
+          <h1 class="title">Soirée de méchant salopard x3</h1>
+          <p class="subtitle" id="subtitle">Chargement...</p>
+        </div>
+        <div class="header-actions">
+          <button class="download-btn" id="downloadFavBtn" onclick="downloadFavorites()" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+            <span>Télécharger favoris</span>
+          </button>
+          <button class="download-btn" onclick="downloadAll()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Tout télécharger</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- FILTRES PAR HEURE -->
+    <div class="filters" id="filters">
+      <button class="filter-chip active" onclick="setFilter('all', this)">Toutes</button>
+    </div>
+
+    <!-- BARRE DE STATS -->
+    <div class="stats-bar">
+      <span class="stats-count" id="statsCount"></span>
+      <div class="stats-actions">
+        <button class="grid-toggle" onclick="toggleGrid()" title="Changer la taille des photos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="gridIcon">
+            <rect x="3" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+            <rect x="14" y="14" width="7" height="7" rx="1"/>
+          </svg>
+        </button>
+        <button class="sort-toggle" onclick="toggleSort()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="sortIcon">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="15" y2="12"/>
+            <line x1="3" y1="18" x2="9" y2="18"/>
+          </svg>
+          <span id="sortLabel">Plus récent</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- GRILLE PHOTOS -->
+    <main class="grid" id="photoGrid">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Chargement des photos…</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- LIGHTBOX -->
+  <div class="lightbox" id="lightbox" onclick="handleLightboxClick(event)">
+    <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+    <div class="lightbox-inner">
+      <img id="lbImg" src="" alt="" />
+      <div class="lightbox-meta">
+        <p class="lightbox-caption" id="lbCaption"></p>
+        <p class="lightbox-time" id="lbTime"></p>
+      </div>
+      <div class="lightbox-actions">
+        <button class="lb-btn fav-lb" id="lbFavBtn" onclick="toggleLightboxFav()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="lbFavIcon">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          Favori
+        </button>
+        <button class="lb-btn" onclick="downloadSingle()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Télécharger
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
