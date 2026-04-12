@@ -250,6 +250,29 @@ body {
   height: 16px;
 }
 
+.slideshow-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s;
+}
+.slideshow-toggle:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.slideshow-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* ─── GRILLE PHOTOS ──────────────────────────────────────── */
 .grid {
   display: grid;
@@ -360,15 +383,31 @@ body {
   color: var(--text-muted);
   font-size: 14px;
 }
-.spinner {
-  width: 28px;
-  height: 28px;
-  border: 2px solid var(--border);
-  border-top-color: var(--text-secondary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+.progress-bar-container {
+  width: 200px;
+  max-width: 80%;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--text-secondary);
+  transition: width 0.2s ease;
+}
+.progress-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.loading.hidden {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
 
 .empty {
   grid-column: 1 / -1;
@@ -445,6 +484,45 @@ body {
   transition: background 0.15s;
 }
 .lightbox-close:hover { background: rgba(255,255,255,0.2); }
+
+/* Conteneur des boutons de navigation */
+.lb-nav-container {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin: 8px 0;
+}
+
+/* Boutons de navigation lightbox */
+.lb-nav {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.lb-nav:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+@media (max-width: 600px) {
+  .lb-nav {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+  }
+  .lb-nav-container {
+    gap: 12px;
+  }
+}
 
 .lightbox-actions {
   display: flex;

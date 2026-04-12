@@ -11,6 +11,12 @@ let sortAsc = false;      // false = plus récent en premier
 let lightboxIdx = null;   // index dans photos[] de la photo ouverte
 let gridColumns = 2;      // 2 ou 4 colonnes pour la grille
 
+/* ── DIAPORAMA ────────────────────────────────────────────── */
+
+let slideshowInterval = null;  // interval ID pour le diaporama
+let slideshowPaused = false;     // état pause/play
+const SLIDESHOW_DELAY = 3000;    // 3 secondes entre chaque photo
+
 /* ── CHARGEMENT INITIAL ─────────────────────────────────── */
 
 async function init() {
@@ -27,6 +33,9 @@ async function init() {
     gridColumns = parseInt(localStorage.getItem('gridColumns') || '2');
     document.getElementById('photoGrid').className = `grid grid-${gridColumns}`;
 
+    // Précharge les images avec barre de progression
+    await preloadImagesWithProgress();
+
     buildHourFilters();
     render();
     updateSubtitle();
@@ -39,6 +48,54 @@ async function init() {
       </div>`;
     console.error('Erreur chargement photos.json :', err);
   }
+}
+
+/* ── PRÉCHARGEMENT IMAGES ───────────────────────────────── */
+
+async function preloadImagesWithProgress() {
+  const total = photos.length;
+  if (total === 0) return;
+
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const loadingContainer = document.getElementById('loadingContainer');
+
+  let loaded = 0;
+
+  // Met à jour la barre de progression
+  const updateProgress = () => {
+    loaded++;
+    const percent = (loaded / total) * 100;
+    if (progressBar) progressBar.style.width = `${percent}%`;
+    if (progressText) progressText.textContent = `Chargement… ${loaded}/${total} photos`;
+
+    // Si toutes les images sont chargées, masque la barre avec transition
+    if (loaded >= total) {
+      if (loadingContainer) {
+        loadingContainer.classList.add('hidden');
+      }
+    }
+  };
+
+  // Précharge chaque image
+  const promises = photos.map(p => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        updateProgress();
+        resolve();
+      };
+      img.onerror = () => {
+        // Même en cas d'erreur, on continue
+        updateProgress();
+        resolve();
+      };
+      // Utilise la miniature si disponible, sinon l'originale
+      img.src = p.thumb || p.src;
+    });
+  });
+
+  await Promise.all(promises);
 }
 
 /* ── SOUS-TITRE ─────────────────────────────────────────── */
@@ -235,6 +292,7 @@ function openLightbox(id) {
 }
 
 function closeLightbox() {
+  stopSlideshow();
   document.getElementById('lightbox').classList.remove('open');
   document.body.style.overflow = '';
   lightboxIdx = null;
@@ -244,17 +302,128 @@ function handleLightboxClick(e) {
   if (e.target === document.getElementById('lightbox')) closeLightbox();
 }
 
+/* ── NAVIGATION LIGHTBOX ───────────────────────────────── */
+
+function prevPhoto() {
+  if (lightboxIdx === null) return;
+  const list = getFiltered();
+  if (!list.length) return;
+  
+  // Trouve l'index actuel dans la liste filtrée
+  const currentIndex = list.findIndex(p => p.id === lightboxIdx);
+  if (currentIndex === -1) return;
+  
+  // Photo précédente (ou dernière si au début)
+  const prevIndex = (currentIndex - 1 + list.length) % list.length;
+  openLightbox(list[prevIndex].id);
+}
+
+function nextPhoto() {
+  if (lightboxIdx === null) return;
+  const list = getFiltered();
+  if (!list.length) return;
+  
+  // Trouve l'index actuel dans la liste filtrée
+  const currentIndex = list.findIndex(p => p.id === lightboxIdx);
+  if (currentIndex === -1) return;
+  
+  // Photo suivante (ou première si à la fin)
+  const nextIndex = (currentIndex + 1) % list.length;
+  openLightbox(list[nextIndex].id);
+}
+
+/* ── DIAPORAMA ────────────────────────────────────────────── */
+
+function startSlideshow() {
+  const list = getFiltered();
+  if (!list.length) {
+    showToast('Aucune photo à afficher');
+    return;
+  }
+  
+  // Ouvre la première photo filtrée
+  openLightbox(list[0].id);
+  
+  // Active le diaporama
+  slideshowPaused = false;
+  updatePauseButton();
+  
+  // Affiche le bouton pause
+  document.getElementById('lbPauseBtn').style.display = 'inline-flex';
+  
+  // Démarre l'interval
+  stopSlideshow(); // Clear any existing interval first
+  slideshowInterval = setInterval(nextSlide, SLIDESHOW_DELAY);
+}
+
+function stopSlideshow() {
+  if (slideshowInterval) {
+    clearInterval(slideshowInterval);
+    slideshowInterval = null;
+  }
+  slideshowPaused = false;
+  // Cache le bouton pause
+  const pauseBtn = document.getElementById('lbPauseBtn');
+  if (pauseBtn) pauseBtn.style.display = 'none';
+}
+
+function nextSlide() {
+  if (slideshowPaused || lightboxIdx === null) return;
+  
+  const list = getFiltered();
+  if (!list.length) {
+    stopSlideshow();
+    return;
+  }
+  
+  // Trouve l'index actuel dans la liste filtrée
+  const currentIndex = list.findIndex(p => p.id === lightboxIdx);
+  if (currentIndex === -1) {
+    // La photo actuelle n'est pas dans les filtrées, retourne au début
+    openLightbox(list[0].id);
+    return;
+  }
+  
+  // Passe à la photo suivante (ou retourne au début si fin)
+  const nextIndex = (currentIndex + 1) % list.length;
+  openLightbox(list[nextIndex].id);
+}
+
+function toggleSlideshowPause() {
+  slideshowPaused = !slideshowPaused;
+  updatePauseButton();
+}
+
+function updatePauseButton() {
+  const btn = document.getElementById('lbPauseBtn');
+  const icon = document.getElementById('lbPauseIcon');
+  const label = document.getElementById('lbPauseLabel');
+  
+  if (!btn || !icon || !label) return;
+  
+  if (slideshowPaused) {
+    // Affiche icône play (triangle)
+    icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+    label.textContent = 'Lecture';
+  } else {
+    // Affiche icône pause (deux barres)
+    icon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+    label.textContent = 'Pause';
+  }
+}
+
 function updateLbFavBtn() {
   if (lightboxIdx === null) return;
   const p   = photos[lightboxIdx];
   const btn = document.getElementById('lbFavBtn');
   const ico = document.getElementById('lbFavIcon');
+  const span = btn.querySelector('span');
   btn.classList.toggle('active', p.fav);
   ico.style.fill   = p.fav ? '#fff' : 'none';
   ico.style.stroke = '#fff';
-  btn.querySelector('svg').nextSibling
-    ? btn.childNodes[btn.childNodes.length - 1].textContent = p.fav ? ' Favori ✓' : ' Favori'
-    : null;
+  if (span) {
+    span.textContent = p.fav ? 'Favori ✓' : 'Favori';
+  }
 }
 
 function toggleLightboxFav() {
@@ -408,6 +577,8 @@ function observeLazyImages() {
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') prevPhoto();
+  if (e.key === 'ArrowRight') nextPhoto();
 });
 
 /* ── PINCH TO ZOOM (MOBILE) ──────────────────────────────── */
@@ -472,6 +643,38 @@ document.addEventListener('keydown', e => {
   grid.addEventListener('touchcancel', () => {
     isPinching = false;
   });
+})();
+
+/* ── SWIPE LIGHTBOX (MOBILE) ─────────────────────────────── */
+
+(function setupLightboxSwipe() {
+  const lightbox = document.getElementById('lightbox');
+  let touchStartX = 0;
+  let touchEndX = 0;
+  const minSwipeDistance = 50; // Distance minimale pour considérer un swipe
+
+  lightbox.addEventListener('touchstart', e => {
+    touchStartX = e.changedTouches[0].screenX;
+  }, { passive: true });
+
+  lightbox.addEventListener('touchend', e => {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipe();
+  }, { passive: true });
+
+  function handleSwipe() {
+    const swipeDistance = touchEndX - touchStartX;
+    
+    if (Math.abs(swipeDistance) > minSwipeDistance) {
+      if (swipeDistance > 0) {
+        // Swipe vers la droite → photo précédente
+        prevPhoto();
+      } else {
+        // Swipe vers la gauche → photo suivante
+        nextPhoto();
+      }
+    }
+  }
 })();
 
 /* ── LANCEMENT ───────────────────────────────────────────── */

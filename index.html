@@ -52,6 +52,11 @@
             <rect x="14" y="14" width="7" height="7" rx="1"/>
           </svg>
         </button>
+        <button class="slideshow-toggle" onclick="startSlideshow()" title="Lancer le diaporama">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+        </button>
         <button class="sort-toggle" onclick="toggleSort()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="sortIcon">
             <line x1="3" y1="6" x2="21" y2="6"/>
@@ -65,9 +70,11 @@
 
     <!-- GRILLE PHOTOS -->
     <main class="grid" id="photoGrid">
-      <div class="loading">
-        <div class="spinner"></div>
-        <p>Chargement des photos…</p>
+      <div class="loading" id="loadingContainer">
+        <div class="progress-bar-container">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <p class="progress-text" id="progressText">Chargement… 0/0 photos</p>
       </div>
     </main>
   </div>
@@ -81,12 +88,23 @@
         <p class="lightbox-caption" id="lbCaption"></p>
         <p class="lightbox-time" id="lbTime"></p>
       </div>
+      <div class="lb-nav-container">
+        <button class="lb-nav lb-prev" onclick="prevPhoto()">‹</button>
+        <button class="lb-nav lb-next" onclick="nextPhoto()">›</button>
+      </div>
       <div class="lightbox-actions">
         <button class="lb-btn fav-lb" id="lbFavBtn" onclick="toggleLightboxFav()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="lbFavIcon">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
           </svg>
-          Favori
+          <span>Favori</span>
+        </button>
+        <button class="lb-btn slideshow-pause" id="lbPauseBtn" onclick="toggleSlideshowPause()" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="lbPauseIcon">
+            <rect x="6" y="4" width="4" height="16"/>
+            <rect x="14" y="4" width="4" height="16"/>
+          </svg>
+          <span id="lbPauseLabel">Pause</span>
         </button>
         <button class="lb-btn" onclick="downloadSingle()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
