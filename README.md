@@ -9,16 +9,19 @@ Tri par heure, recherche, favoris, téléchargement global.
 
 ```
 soiree/
-├── index.html          ← page principale
-├── style.css           ← tous les styles
-├── app.js              ← toute la logique
-├── photos.json         ← généré automatiquement par le script
-├── generate_json.py    ← script Python à lancer une fois
-├── legendes.csv        ← légendes optionnelles (à remplir)
-└── photos/             ← ⬅️ place tes photos ici
+├── index.html             ← page principale
+├── style.css              ← tous les styles
+├── app.js                 ← toute la logique
+├── photos.json            ← généré automatiquement par le script
+├── generate_thumbnails.py ← script Python pour générer les miniatures
+├── generate_json.py       ← script Python à lancer une fois
+├── legendes.csv           ← légendes optionnelles (à remplir)
+└── photos/                ← ⬅️ place tes photos ici
     ├── IMG_0001.jpg
     ├── IMG_0002.jpg
-    └── ...
+    └── thumbs/            ← miniatures générées automatiquement
+        ├── IMG_0001.webp
+        └── ...
 ```
 
 ---
@@ -36,16 +39,26 @@ pip3 install Pillow
 Place toutes tes photos dans le dossier `photos/`.  
 Formats acceptés : `.jpg`, `.jpeg`, `.png`, `.webp`, `.heic`, `.tiff`
 
-### 3. Générer le fichier JSON
+### 3. Générer les miniatures (recommandé pour 50+ photos)
+
+```bash
+python3 generate_thumbnails.py
+```
+
+Ce script crée des miniatures WebP 400×400px dans `photos/thumbs/`.  
+Les miniatures existantes ne sont pas recréées. Cela accélère considérablement  
+le chargement de la galerie, surtout avec beaucoup de photos.
+
+### 4. Générer le fichier JSON
 
 ```bash
 python3 generate_json.py
 ```
 
 Le script lit automatiquement la date/heure depuis les métadonnées EXIF  
-de chaque photo et génère `photos.json`.
+de chaque photo et génère `photos.json` avec les chemins des miniatures.
 
-### 4. Ajouter des légendes (optionnel)
+### 5. Ajouter des légendes (optionnel)
 
 Remplis le fichier `legendes.csv` :
 
@@ -55,13 +68,14 @@ IMG_0001.jpg,Arrivée de Julie
 IMG_0002.jpg,Premier verre !
 ```
 
-Puis relance le script avec l'option `--captions` :
+Puis relance les scripts dans l'ordre :
 
 ```bash
+python3 generate_thumbnails.py
 python3 generate_json.py --captions legendes.csv
 ```
 
-### 5. Lancer le site en local
+### 6. Lancer le site en local
 
 ```bash
 # Python (recommandé)

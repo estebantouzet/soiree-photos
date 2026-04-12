@@ -138,12 +138,14 @@ function render() {
     const captionHtml = p.caption
       ? `<p class="photo-caption">${escHtml(p.caption)}</p>`
       : '';
+    // Utilise la miniature pour la grille, fallback sur src si absent
+    const thumbSrc = p.thumb || p.src;
     return `
       <div class="photo-card" onclick="openLightbox(${p.id})">
         <img
-          src="${escHtml(p.src)}"
+          data-src="${escHtml(thumbSrc)}"
           alt="${escHtml(p.caption || p.time || '')}"
-          loading="lazy"
+          class="lazy-img"
         />
         <div class="photo-overlay">
           ${captionHtml}
@@ -160,6 +162,9 @@ function render() {
         </button>
       </div>`;
   }).join('');
+
+  // Déclencher le lazy loading sur les nouvelles images
+  observeLazyImages();
 }
 
 /* ── ACTIONS UTILISATEUR ─────────────────────────────────── */
@@ -327,6 +332,39 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/* ── LAZY LOADING ────────────────────────────────────────── */
+
+let lazyObserver = null;
+
+function observeLazyImages() {
+  // Créer l'observer une seule fois
+  if (!lazyObserver) {
+    lazyObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const img = entry.target;
+          const src = img.getAttribute('data-src');
+          if (src) {
+            img.src = src;
+            img.removeAttribute('data-src');
+            img.classList.remove('lazy-img');
+            img.classList.add('loaded');
+          }
+          lazyObserver.unobserve(img);
+        }
+      });
+    }, {
+      rootMargin: '100px', // Charge un peu avant d'entrer dans le viewport
+      threshold: 0.01
+    });
+  }
+
+  // Observer toutes les images lazy
+  document.querySelectorAll('img.lazy-img').forEach(img => {
+    lazyObserver.observe(img);
+  });
 }
 
 /* ── CLAVIER ─────────────────────────────────────────────── */

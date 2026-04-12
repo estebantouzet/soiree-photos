@@ -130,9 +130,13 @@ def main():
 
         print(status)
 
+        # Chemin de la miniature (webp avec le même nom de base)
+        thumb_path = f"photos/thumbs/{f.stem}.webp"
+        
         results.append({
             "id":      idx,
             "src":     f"photos/{f.name}",
+            "thumb":   thumb_path,
             "caption": caption,
             "time":    time_str,
             "hour":    hour_str,
