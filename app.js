@@ -275,28 +275,65 @@ function downloadSingle() {
   triggerDownload(p.src, `soiree_${(p.time || 'photo').replace(':', 'h')}.jpg`);
 }
 
-function downloadAll() {
+async function downloadAll() {
   const list = getFiltered();
   if (!list.length) { showToast('Aucune photo à télécharger'); return; }
 
-  showToast(`Téléchargement de ${list.length} photo${list.length > 1 ? 's' : ''}…`);
-  list.forEach((p, i) => {
-    setTimeout(() => {
-      triggerDownload(p.src, `soiree_${String(i + 1).padStart(3, '0')}_${(p.time || 'photo').replace(':', 'h')}.jpg`);
-    }, i * 150);
-  });
+  await downloadAsZip(list, 'soiree_photos.zip', 'photo');
 }
 
-function downloadFavorites() {
+async function downloadFavorites() {
   const favs = photos.filter(p => p.fav);
   if (!favs.length) { showToast('Aucun favori à télécharger'); return; }
 
-  showToast(`Téléchargement de ${favs.length} favori${favs.length > 1 ? 's' : ''}…`);
-  favs.forEach((p, i) => {
-    setTimeout(() => {
-      triggerDownload(p.src, `soiree_favori_${String(i + 1).padStart(3, '0')}_${(p.time || 'photo').replace(':', 'h')}.jpg`);
-    }, i * 150);
-  });
+  await downloadAsZip(favs, 'soiree_favoris.zip', 'favori');
+}
+
+async function downloadAsZip(photoList, zipName, prefix) {
+  if (typeof JSZip === 'undefined') {
+    showToast('Erreur : JSZip non chargé');
+    return;
+  }
+
+  const zip = new JSZip();
+  const total = photoList.length;
+
+  showToast(`Préparation du zip… 0/${total}`);
+
+  for (let i = 0; i < total; i++) {
+    const p = photoList[i];
+    try {
+      // Utilise p.src (fichier original), pas la miniature
+      const response = await fetch(p.src);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blob = await response.blob();
+
+      // Nom de fichier : soiree_[prefix]_[index]_[heure].ext
+      const ext = p.src.split('.').pop() || 'jpg';
+      const filename = `soiree_${prefix}_${String(i + 1).padStart(3, '0')}_${(p.time || 'photo').replace(':', 'h')}.${ext}`;
+      zip.file(filename, blob);
+
+      showToast(`Préparation du zip… ${i + 1}/${total}`);
+    } catch (err) {
+      console.error(`Erreur sur ${p.src}:`, err);
+    }
+  }
+
+  showToast('Création du zip…');
+
+  try {
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = zipName;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`${total} photo${total > 1 ? 's' : ''} téléchargée${total > 1 ? 's' : ''} !`);
+  } catch (err) {
+    console.error('Erreur création zip:', err);
+    showToast('Erreur lors de la création du zip');
+  }
 }
 
 function triggerDownload(src, filename) {
