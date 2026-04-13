@@ -52,7 +52,7 @@
             <rect x="14" y="14" width="7" height="7" rx="1"/>
           </svg>
         </button>
-        <button class="slideshow-toggle" onclick="startSlideshow()" title="Lancer le diaporama">
+        <button class="slideshow-toggle" onclick="launchSlideshow()" title="Lancer le diaporama">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
@@ -70,20 +70,20 @@
 
     <!-- GRILLE PHOTOS -->
     <main class="grid" id="photoGrid">
-      <div class="loading" id="loadingContainer">
-        <div class="progress-bar-container">
-          <div class="progress-bar" id="progressBar"></div>
-        </div>
-        <p class="progress-text" id="progressText">Chargement… 0/0 photos</p>
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Chargement des photos…</p>
       </div>
     </main>
   </div>
 
   <!-- LIGHTBOX -->
   <div class="lightbox" id="lightbox" onclick="handleLightboxClick(event)">
-    <button class="lightbox-close" onclick="closeLightbox()">✕</button>
     <div class="lightbox-inner">
-      <img id="lbImg" src="" alt="" />
+      <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+      <div class="lb-img-wrapper" id="lbImgWrapper">
+        <img id="lbImg" src="" alt="" />
+      </div>
       <div class="lightbox-meta">
         <p class="lightbox-caption" id="lbCaption"></p>
         <p class="lightbox-time" id="lbTime"></p>
@@ -91,6 +91,12 @@
       <div class="lb-nav-container">
         <button class="lb-nav lb-prev" onclick="prevPhoto()">‹</button>
         <button class="lb-nav lb-next" onclick="nextPhoto()">›</button>
+      </div>
+      <div class="slideshow-speed-controls" id="slideshowSpeedControls" style="display:none">
+        <span class="speed-label">Vitesse :</span>
+        <button class="speed-btn" data-speed="2000" onclick="setSlideshowSpeed(2000)">2s</button>
+        <button class="speed-btn active" data-speed="4000" onclick="setSlideshowSpeed(4000)">4s</button>
+        <button class="speed-btn" data-speed="6000" onclick="setSlideshowSpeed(6000)">6s</button>
       </div>
       <div class="lightbox-actions">
         <button class="lb-btn fav-lb" id="lbFavBtn" onclick="toggleLightboxFav()">

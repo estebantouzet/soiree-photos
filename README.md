@@ -15,6 +15,7 @@ soiree/
 ├── photos.json            ← généré automatiquement par le script
 ├── generate_thumbnails.py ← script Python pour générer les miniatures
 ├── generate_json.py       ← script Python à lancer une fois
+├── reset.py               ← script pour réinitialiser le projet
 ├── legendes.csv           ← légendes optionnelles (à remplir)
 └── photos/                ← ⬅️ place tes photos ici
     ├── IMG_0001.jpg
@@ -104,6 +105,23 @@ npx serve .
 1. Crée un dépôt GitHub et pousse le dossier
 2. Active GitHub Pages dans les paramètres du dépôt
 3. Ton site est disponible à `https://tonnom.github.io/soiree`
+
+---
+
+## Nouvelle soirée
+
+Pour réinitialiser le projet et recommencer avec de nouvelles photos :
+
+```bash
+python3 reset.py
+```
+
+Ce script va :
+- Supprimer toutes les photos du dossier `photos/`
+- Supprimer toutes les miniatures dans `photos/thumbs/`
+- Réinitialiser `photos.json` (tableau vide)
+
+Une confirmation est demandée avant toute suppression.
 
 ---
 

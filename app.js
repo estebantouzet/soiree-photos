@@ -15,7 +15,7 @@ let gridColumns = 2;      // 2 ou 4 colonnes pour la grille
 
 let slideshowInterval = null;  // interval ID pour le diaporama
 let slideshowPaused = false;     // état pause/play
-const SLIDESHOW_DELAY = 3000;    // 3 secondes entre chaque photo
+let SLIDESHOW_DELAY = 4000;      // vitesse du diaporama (ms), défaut 4s
 
 /* ── CHARGEMENT INITIAL ─────────────────────────────────── */
 
@@ -33,9 +33,6 @@ async function init() {
     gridColumns = parseInt(localStorage.getItem('gridColumns') || '2');
     document.getElementById('photoGrid').className = `grid grid-${gridColumns}`;
 
-    // Précharge les images avec barre de progression
-    await preloadImagesWithProgress();
-
     buildHourFilters();
     render();
     updateSubtitle();
@@ -48,54 +45,6 @@ async function init() {
       </div>`;
     console.error('Erreur chargement photos.json :', err);
   }
-}
-
-/* ── PRÉCHARGEMENT IMAGES ───────────────────────────────── */
-
-async function preloadImagesWithProgress() {
-  const total = photos.length;
-  if (total === 0) return;
-
-  const progressBar = document.getElementById('progressBar');
-  const progressText = document.getElementById('progressText');
-  const loadingContainer = document.getElementById('loadingContainer');
-
-  let loaded = 0;
-
-  // Met à jour la barre de progression
-  const updateProgress = () => {
-    loaded++;
-    const percent = (loaded / total) * 100;
-    if (progressBar) progressBar.style.width = `${percent}%`;
-    if (progressText) progressText.textContent = `Chargement… ${loaded}/${total} photos`;
-
-    // Si toutes les images sont chargées, masque la barre avec transition
-    if (loaded >= total) {
-      if (loadingContainer) {
-        loadingContainer.classList.add('hidden');
-      }
-    }
-  };
-
-  // Précharge chaque image
-  const promises = photos.map(p => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        updateProgress();
-        resolve();
-      };
-      img.onerror = () => {
-        // Même en cas d'erreur, on continue
-        updateProgress();
-        resolve();
-      };
-      // Utilise la miniature si disponible, sinon l'originale
-      img.src = p.thumb || p.src;
-    });
-  });
-
-  await Promise.all(promises);
 }
 
 /* ── SOUS-TITRE ─────────────────────────────────────────── */
@@ -175,6 +124,12 @@ function getFiltered() {
 /* ── RENDU DE LA GRILLE ─────────────────────────────────── */
 
 function render() {
+  // Réinitialise le lazyObserver pour éviter les références mortes
+  if (lazyObserver) {
+    lazyObserver.disconnect();
+    lazyObserver = null;
+  }
+
   const list    = getFiltered();
   const grid    = document.getElementById('photoGrid');
   const counter = document.getElementById('statsCount');
@@ -233,19 +188,6 @@ function setFilter(f, el) {
   render();
 }
 
-function filterPhotos() {
-  searchQuery = document.getElementById('searchInput').value.trim();
-  document.getElementById('clearBtn').style.display = searchQuery ? 'block' : 'none';
-  render();
-}
-
-function clearSearch() {
-  document.getElementById('searchInput').value = '';
-  searchQuery = '';
-  document.getElementById('clearBtn').style.display = 'none';
-  render();
-}
-
 function toggleSort() {
   sortAsc = !sortAsc;
   document.getElementById('sortLabel').textContent = sortAsc ? 'Plus ancien' : 'Plus récent';
@@ -265,7 +207,8 @@ function toggleGrid() {
 
 function toggleFav(e, id) {
   e.stopPropagation();
-  photos[id].fav = !photos[id].fav;
+  const photo = photos.find(p => p.id === id);
+  if (photo) photo.fav = !photo.fav;
   saveFavs();
   updateFavChip();
   updateSubtitle();
@@ -281,7 +224,7 @@ function saveFavs() {
 
 function openLightbox(id) {
   lightboxIdx = id;
-  const p = photos[id];
+  const p = photos.find(photo => photo.id === id);
   document.getElementById('lbImg').src    = p.src;
   document.getElementById('lbImg').alt    = p.caption || '';
   document.getElementById('lbCaption').textContent = p.caption || '(pas de légende)';
@@ -334,6 +277,20 @@ function nextPhoto() {
 
 /* ── DIAPORAMA ────────────────────────────────────────────── */
 
+function launchSlideshow() {
+  // Lance d'abord le diaporama (ouvre la lightbox)
+  startSlideshow();
+  
+  // Puis active le plein écran après que la lightbox soit visible
+  setTimeout(() => {
+    const lightbox = document.getElementById('lightbox');
+    try {
+      if (lightbox.requestFullscreen) lightbox.requestFullscreen();
+      else if (lightbox.webkitRequestFullscreen) lightbox.webkitRequestFullscreen();
+    } catch (e) {}
+  }, 50);
+}
+
 function startSlideshow() {
   const list = getFiltered();
   if (!list.length) {
@@ -348,12 +305,19 @@ function startSlideshow() {
   slideshowPaused = false;
   updatePauseButton();
   
-  // Affiche le bouton pause
+  // Affiche les contrôles
   document.getElementById('lbPauseBtn').style.display = 'inline-flex';
+  document.getElementById('slideshowSpeedControls').style.display = 'flex';
   
-  // Démarre l'interval
-  stopSlideshow(); // Clear any existing interval first
+  // Démarre l'interval (clear d'abord si déjà existant)
+  if (slideshowInterval) {
+    clearInterval(slideshowInterval);
+    slideshowInterval = null;
+  }
   slideshowInterval = setInterval(nextSlide, SLIDESHOW_DELAY);
+  
+  // Démarre l'effet Ken Burns
+  startKenBurns();
 }
 
 function stopSlideshow() {
@@ -362,9 +326,19 @@ function stopSlideshow() {
     slideshowInterval = null;
   }
   slideshowPaused = false;
-  // Cache le bouton pause
+  
+  // Cache les contrôles
   const pauseBtn = document.getElementById('lbPauseBtn');
+  const speedControls = document.getElementById('slideshowSpeedControls');
   if (pauseBtn) pauseBtn.style.display = 'none';
+  if (speedControls) speedControls.style.display = 'none';
+  
+  // Quitte le plein écran
+  if (document.exitFullscreen) document.exitFullscreen();
+  else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  
+  // Arrête l'effet Ken Burns
+  stopKenBurns();
 }
 
 function nextSlide() {
@@ -381,12 +355,16 @@ function nextSlide() {
   if (currentIndex === -1) {
     // La photo actuelle n'est pas dans les filtrées, retourne au début
     openLightbox(list[0].id);
+    startKenBurns();
     return;
   }
   
   // Passe à la photo suivante (ou retourne au début si fin)
   const nextIndex = (currentIndex + 1) % list.length;
   openLightbox(list[nextIndex].id);
+  
+  // Redémarre l'animation Ken Burns pour la nouvelle photo
+  startKenBurns();
 }
 
 function toggleSlideshowPause() {
@@ -412,9 +390,59 @@ function updatePauseButton() {
   }
 }
 
+function setSlideshowSpeed(speed) {
+  SLIDESHOW_DELAY = speed;
+  
+  // Met à jour la variable CSS pour l'animation Ken Burns
+  document.documentElement.style.setProperty('--slide-duration', `${speed}ms`);
+  
+  // Met à jour les boutons actifs
+  document.querySelectorAll('.speed-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.speed) === speed);
+  });
+  
+  // Redémarre l'intervalle si le diaporama est actif
+  if (slideshowInterval) {
+    clearInterval(slideshowInterval);
+    slideshowInterval = setInterval(nextSlide, SLIDESHOW_DELAY);
+  }
+  
+  // Redémarre l'animation Ken Burns avec la nouvelle durée
+  if (document.getElementById('lightbox').classList.contains('open')) {
+    startKenBurns();
+  }
+}
+
+/* ── EFFET KEN BURNS ─────────────────────────────────────── */
+
+function startKenBurns() {
+  const wrapper = document.getElementById('lbImgWrapper');
+  const img = document.getElementById('lbImg');
+  if (!wrapper || !img) return;
+  
+  // Supprime la classe pour réinitialiser l'animation
+  img.classList.remove('ken-burns');
+  
+  // Force un reflow pour que la suppression soit prise en compte
+  void img.offsetWidth;
+  
+  // Choisit aléatoirement le type d'animation
+  const zoomIn = Math.random() > 0.5;
+  wrapper.dataset.zoom = zoomIn ? 'in' : 'out';
+  
+  // Ajoute la classe pour démarrer l'animation
+  img.classList.add('ken-burns');
+}
+
+function stopKenBurns() {
+  const img = document.getElementById('lbImg');
+  if (img) img.classList.remove('ken-burns');
+}
+
 function updateLbFavBtn() {
   if (lightboxIdx === null) return;
-  const p   = photos[lightboxIdx];
+  const p = photos.find(photo => photo.id === lightboxIdx);
+  if (!p) return;
   const btn = document.getElementById('lbFavBtn');
   const ico = document.getElementById('lbFavIcon');
   const span = btn.querySelector('span');
@@ -428,7 +456,8 @@ function updateLbFavBtn() {
 
 function toggleLightboxFav() {
   if (lightboxIdx === null) return;
-  photos[lightboxIdx].fav = !photos[lightboxIdx].fav;
+  const photo = photos.find(p => p.id === lightboxIdx);
+  if (photo) photo.fav = !photo.fav;
   saveFavs();
   updateFavChip();
   updateSubtitle();
@@ -440,7 +469,8 @@ function toggleLightboxFav() {
 
 function downloadSingle() {
   if (lightboxIdx === null) return;
-  const p = photos[lightboxIdx];
+  const p = photos.find(photo => photo.id === lightboxIdx);
+  if (!p) return;
   triggerDownload(p.src, `soiree_${(p.time || 'photo').replace(':', 'h')}.jpg`);
 }
 
@@ -579,6 +609,17 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeLightbox();
   if (e.key === 'ArrowLeft') prevPhoto();
   if (e.key === 'ArrowRight') nextPhoto();
+});
+
+/* ── PLEIN ÉCRAN ─────────────────────────────────────────── */
+
+// Détecte si l'utilisateur quitte le plein écran manuellement (Échap)
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && slideshowInterval) {
+    // L'utilisateur a quitté le plein écran, on arrête le diaporama
+    stopSlideshow();
+    closeLightbox();
+  }
 });
 
 /* ── PINCH TO ZOOM (MOBILE) ──────────────────────────────── */
