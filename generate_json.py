@@ -11,10 +11,6 @@ Usage :
 Options :
     --photos-dir   Chemin vers le dossier de photos  (défaut : ./photos)
     --output       Chemin du fichier JSON généré     (défaut : ./photos.json)
-    --captions     Fichier CSV optionnel nom,légende (défaut : aucun)
-
-Exemple avec légendes pré-remplies :
-    python generate_json.py --captions legendes.csv
 """
 
 import os
@@ -61,30 +57,10 @@ def parse_datetime(raw: str):
         return None
 
 
-def load_captions(captions_file: str) -> dict:
-    """
-    Charge un CSV optionnel avec les colonnes : nom_fichier, legende
-    Retourne un dict { 'img001.jpg': 'Ma légende' }
-    """
-    captions = {}
-    if not captions_file or not os.path.exists(captions_file):
-        return captions
-    with open(captions_file, newline='', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            filename = row.get('nom_fichier', '').strip()
-            caption  = row.get('legende', '').strip()
-            if filename:
-                captions[filename] = caption
-    print(f"📋  {len(captions)} légende(s) chargée(s) depuis {captions_file}")
-    return captions
-
-
 def main():
     parser = argparse.ArgumentParser(description='Génère photos.json depuis un dossier de photos.')
     parser.add_argument('--photos-dir', default='./photos', help='Dossier contenant les photos')
     parser.add_argument('--output',     default='./photos.json', help='Fichier JSON de sortie')
-    parser.add_argument('--captions',   default='',  help='Fichier CSV nom_fichier,legende (optionnel)')
     args = parser.parse_args()
 
     photos_dir = Path(args.photos_dir)
@@ -92,9 +68,6 @@ def main():
         print(f"❌  Le dossier '{photos_dir}' n'existe pas.")
         print(f"    Crée-le et place tes photos dedans, puis relance le script.")
         exit(1)
-
-    # Charge les légendes depuis le CSV si fourni
-    captions_map = load_captions(args.captions)
 
     # Collecte les fichiers
     files = sorted([
@@ -116,7 +89,6 @@ def main():
     for idx, f in enumerate(files):
         raw_dt  = get_exif_datetime(f)
         dt      = parse_datetime(raw_dt) if raw_dt else None
-        caption = captions_map.get(f.name, '')
 
         if dt:
             time_str = dt.strftime('%H:%M')
@@ -137,7 +109,6 @@ def main():
             "id":      idx,
             "src":     f"photos/{f.name}",
             "thumb":   thumb_path,
-            "caption": caption,
             "time":    time_str,
             "hour":    hour_str,
         })
@@ -160,13 +131,6 @@ def main():
     if no_exif_count:
         print(f"⚠️   {no_exif_count} photo(s) sans EXIF ont reçu l'heure 00:00.")
         print(f"    Tu peux les corriger manuellement dans photos.json")
-
-    print()
-    print("💡  Astuce : pour ajouter des légendes, crée un fichier legendes.csv :")
-    print("    nom_fichier,legende")
-    print("    img001.jpg,Arrivée de Julie")
-    print("    img002.jpg,Premier verre !")
-    print("    puis relance : python generate_json.py --captions legendes.csv")
 
 
 if __name__ == '__main__':

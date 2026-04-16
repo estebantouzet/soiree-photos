@@ -4,9 +4,43 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Soirée Photos</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
+  <!-- PRELOADER -->
+  <div id="preloader">
+    <span id="load-perc">0%</span>
+    <p id="load-status">Initialisation...</p>
+  </div>
+
+  <!-- WELCOME SCREEN / SPLASH -->
+  <div id="welcome-screen" class="welcome-screen" data-photo-count="93">
+    <div class="welcome-bg" id="welcome-bg"></div>
+    <div class="welcome-content">
+      <h1 class="welcome-title">
+        <span class="word-reveal" style="--delay: 0s">Soirée</span>
+        <span class="word-reveal" style="--delay: 0.15s">de</span><br>
+        <span class="word-reveal" style="--delay: 0.3s">méchant</span>
+        <span class="word-reveal" style="--delay: 0.45s">salopard</span>
+        <span class="word-reveal" style="--delay: 0.6s">x3</span>
+      </h1>
+      <p class="photo-counter"><span id="photo-count">0</span> moments capturés</p>
+      <p class="welcome-date">22.02.2025</p>
+      <div class="preview-container">
+        <img id="preview-img" src="" alt="">
+        <div class="preview-overlay"><i class="fas fa-eye-slash"></i></div>
+      </div>
+      <button class="welcome-btn" onclick="enterGallery()">
+        <span>Découvrir l'album</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </button>
+    </div>
+  </div>
 
   <!-- HEADER -->
   <div class="app">
@@ -14,7 +48,7 @@
       <div class="header-top">
         <div class="header-main">
           <h1 class="title">Soirée de méchant salopard x3</h1>
-          <p class="subtitle" id="subtitle">Chargement...</p>
+          <p class="subtitle" id="subtitle">Chargement... <span class="shortcut-hint" onclick="showShortcutsHelp(); return false;" title="Raccourcis clavier"><kbd>?</kbd></span></p>
         </div>
         <div class="header-actions">
           <button class="download-btn" id="downloadFavBtn" onclick="downloadFavorites()" style="display:none">
@@ -44,17 +78,17 @@
     <div class="stats-bar">
       <span class="stats-count" id="statsCount"></span>
       <div class="stats-actions">
+        <button class="slideshow-toggle" onclick="launchSlideshow()" title="Lancer le diaporama">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+        </button>
         <button class="grid-toggle" onclick="toggleGrid()" title="Changer la taille des photos">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="gridIcon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="7" height="7" rx="1"/>
             <rect x="14" y="3" width="7" height="7" rx="1"/>
             <rect x="3" y="14" width="7" height="7" rx="1"/>
             <rect x="14" y="14" width="7" height="7" rx="1"/>
-          </svg>
-        </button>
-        <button class="slideshow-toggle" onclick="launchSlideshow()" title="Lancer le diaporama">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
         </button>
         <button class="sort-toggle" onclick="toggleSort()">
@@ -81,11 +115,11 @@
   <div class="lightbox" id="lightbox" onclick="handleLightboxClick(event)">
     <div class="lightbox-inner">
       <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+      <div class="lb-progress-bar" id="lbProgressBar"><div class="lb-progress-fill" id="lbProgressFill"></div></div>
       <div class="lb-img-wrapper" id="lbImgWrapper">
         <img id="lbImg" src="" alt="" />
       </div>
       <div class="lightbox-meta">
-        <p class="lightbox-caption" id="lbCaption"></p>
         <p class="lightbox-time" id="lbTime"></p>
       </div>
       <div class="lb-nav-container">
@@ -124,7 +158,52 @@
     </div>
   </div>
 
+  <!-- LIVRE D'OR : Bouton flottant latéral -->
+  <button id="guestbook-toggle">
+    <span>Livre d'Or</span>
+    <span id="message-count" class="message-badge"></span>
+  </button>
+
+  <!-- LIVRE D'OR : Side Drawer -->
+  <aside id="guestbook-drawer">
+    <div class="drawer-header">
+      <h2>Livre d'Or</h2>
+      <button class="drawer-close" id="drawer-close">&times;</button>
+    </div>
+    <div class="drawer-content">
+      <form id="guestbook-form">
+        <input type="text" id="gb-name" placeholder="Ton nom" maxlength="30" required>
+        <textarea id="gb-message" placeholder="Ton message..." maxlength="280" rows="3" required></textarea>
+        <div class="gb-meta">
+          <span id="gb-char-count">0/280</span>
+          <button type="submit">Signer ✍️</button>
+        </div>
+      </form>
+      <div id="guestbook-list" class="guestbook-list">
+        <!-- Les messages apparaissent ici -->
+      </div>
+    </div>
+  </aside>
+
+  <footer class="site-footer">
+    <p class="footer-text">C'est tout pour cette fois... ou pas.</p>
+    <button class="share-btn" onclick="shareSite()">
+      <i class="fas fa-share-nodes"></i>
+      <span>Partager l'album</span>
+    </button>
+  </footer>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  
+  <!-- Firebase SDK (v10+) -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getDatabase, ref, push, onChildAdded } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+    
+    // Expose Firebase functions globally for app.js
+    window.firebaseApp = { initializeApp, getDatabase, ref, push, onChildAdded };
+  </script>
+  
   <script src="app.js"></script>
 </body>
 </html>

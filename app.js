@@ -4,12 +4,15 @@
    lightbox et téléchargements.
 ───────────────────────────────────────────────────────── */
 
+// Haptic feedback helper
+const haptic = (p = 10) => { if (navigator.vibrate) navigator.vibrate(p); };
+
 let photos = [];          // toutes les photos chargées
 let currentFilter = 'all';
 let searchQuery = '';
 let sortAsc = false;      // false = plus récent en premier
 let lightboxIdx = null;   // index dans photos[] de la photo ouverte
-let gridColumns = 2;      // 2 ou 4 colonnes pour la grille
+let gridColumns = 2;
 
 /* ── DIAPORAMA ────────────────────────────────────────────── */
 
@@ -17,25 +20,364 @@ let slideshowInterval = null;  // interval ID pour le diaporama
 let slideshowPaused = false;     // état pause/play
 let SLIDESHOW_DELAY = 4000;      // vitesse du diaporama (ms), défaut 4s
 
+/* ── WELCOME SCREEN / SPLASH ──────────────────────────────── */
+
+let gyroscopeActive = false;
+let previewInterval = null;
+
+// Vérifie si le splash a déjà été vu cette session
+function checkWelcomeScreen() {
+  const hasSeenSplash = sessionStorage.getItem('hasSeenSplash');
+  const welcomeScreen = document.getElementById('welcome-screen');
+  
+  if (hasSeenSplash && welcomeScreen) {
+    // Déjà vu : cache immédiatement
+    welcomeScreen.classList.add('hidden');
+    document.body.classList.remove('splash-open');
+  } else {
+    // Premier visite : affiche le splash
+    document.body.classList.add('splash-open');
+    // Démarre les animations
+    initGyroscopeParallax();
+    
+    // Support touch pour le défloutage (fallback si :active ne suffit pas)
+    const pc = document.querySelector('.preview-container');
+    if (pc) {
+      pc.ontouchstart = () => {
+        haptic(10);
+        pc.classList.add('active');
+      };
+      pc.ontouchend = () => pc.classList.remove('active');
+    }
+  }
+}
+
+// Animation du compteur (défile de 0 jusqu'au total)
+function animateCounter() {
+  const counterEl = document.getElementById('photo-count');
+  const welcomeScreen = document.getElementById('welcome-screen');
+  if (!counterEl || !welcomeScreen) return;
+  
+  const targetCount = parseInt(welcomeScreen.dataset.photoCount, 10) || 93;
+  const duration = 1500; // 1.5 secondes
+  const startTime = performance.now();
+  const startValue = 0;
+  
+  function updateCounter(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    // Easing ease-out
+    const easeOut = 1 - Math.pow(1 - progress, 3);
+    const currentValue = Math.floor(startValue + (targetCount - startValue) * easeOut);
+    
+    counterEl.textContent = currentValue;
+    
+    if (progress < 1) {
+      requestAnimationFrame(updateCounter);
+    } else {
+      counterEl.textContent = targetCount;
+    }
+  }
+  
+  requestAnimationFrame(updateCounter);
+}
+
+// Effet Gyroscope / Parallaxe
+function initGyroscopeParallax() {
+  const bg = document.getElementById('welcome-bg');
+  if (!bg) return;
+  
+  // Détection iOS 13+ pour la permission
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  
+  if (isIOS && typeof DeviceOrientationEvent !== 'undefined' && 
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    // iOS 13+ : demande la permission au premier tap
+    const requestBtn = document.querySelector('.welcome-btn');
+    if (requestBtn) {
+      requestBtn.addEventListener('click', async () => {
+        try {
+          const response = await DeviceOrientationEvent.requestPermission();
+          if (response === 'granted') {
+            startGyroscopeTracking(bg);
+          }
+        } catch (e) {
+          console.log('Permission gyroscope refusée ou erreur');
+        }
+      }, { once: true });
+    }
+  } else {
+    // Android ou ancien iOS : démarrage direct
+    startGyroscopeTracking(bg);
+  }
+}
+
+function startGyroscopeTracking(bgElement) {
+  if (gyroscopeActive) return;
+  gyroscopeActive = true;
+  
+  let lastBeta = 0;
+  let lastGamma = 0;
+  let rafId = null;
+  
+  // Paramètres de l'effet parallaxe
+  const maxOffset = 20; // pixels max de déplacement
+  const smoothing = 0.1; // Lissage pour fluidité
+  
+  function handleOrientation(event) {
+    // beta: inclinaison avant-arrière (-180 à 180)
+    // gamma: inclinaison gauche-droite (-90 à 90)
+    const beta = event.beta || 0;
+    const gamma = event.gamma || 0;
+    
+    // Normalise et limite les valeurs
+    const normalizedBeta = Math.max(-45, Math.min(45, beta));
+    const normalizedGamma = Math.max(-45, Math.min(45, gamma));
+    
+    // Objectif de déplacement
+    const targetY = (normalizedBeta / 45) * maxOffset;
+    const targetX = (normalizedGamma / 45) * maxOffset;
+    
+    // Interpolation douce
+    lastBeta += (targetY - lastBeta) * smoothing;
+    lastGamma += (targetX - lastGamma) * smoothing;
+    
+    // Annule la précédente frame si existe
+    if (rafId) cancelAnimationFrame(rafId);
+    
+    // Applique le transform
+    rafId = requestAnimationFrame(() => {
+      bgElement.style.transform = `scale(1.1) translate3d(${-lastGamma}px, ${-lastBeta}px, 0)`;
+    });
+  }
+  
+  window.addEventListener('deviceorientation', handleOrientation, { passive: true });
+  
+  // Arrête l'effet quand le splash se ferme (économie batterie)
+  const welcomeScreen = document.getElementById('welcome-screen');
+  if (welcomeScreen) {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.target.classList.contains('hidden')) {
+          window.removeEventListener('deviceorientation', handleOrientation);
+          if (rafId) cancelAnimationFrame(rafId);
+          gyroscopeActive = false;
+          observer.disconnect();
+        }
+      });
+    });
+    observer.observe(welcomeScreen, { attributes: true, attributeFilter: ['class'] });
+  }
+}
+
+// Fonction appelée au clic sur le bouton
+function enterGallery() {
+  const welcomeScreen = document.getElementById('welcome-screen');
+  
+  if (welcomeScreen) {
+    // Arrête la boucle de preview
+    if (previewInterval) {
+      clearInterval(previewInterval);
+      previewInterval = null;
+    }
+    
+    // Ajoute la classe pour l'effet élastique (curtain)
+    welcomeScreen.classList.add('curtain-exit');
+    
+    // Petit délai pour laisser la classe s'appliquer avant l'animation
+    requestAnimationFrame(() => {
+      welcomeScreen.classList.add('hidden');
+      document.body.classList.remove('splash-open');
+    });
+    
+    // Marque comme vu pour cette session
+    sessionStorage.setItem('hasSeenSplash', 'true');
+    
+    // Nettoie après l'animation
+    setTimeout(() => {
+      welcomeScreen.classList.remove('curtain-exit');
+    }, 1000);
+  }
+}
+
+// Preview animée du Splash Screen
+function initHomePreview() {
+  const previewImg = document.getElementById('preview-img');
+  if (!previewImg || !photos.length) return;
+  
+  let currentIndex = 0;
+  
+  // Affiche la première image immédiatement
+  previewImg.src = photos[0].thumb || photos[0].src;
+  
+  // Change l'image toutes les 100ms en boucle
+  previewInterval = setInterval(() => {
+    currentIndex = (currentIndex + 1) % photos.length;
+    previewImg.src = photos[currentIndex].thumb || photos[currentIndex].src;
+  }, 100);
+}
+
+// Vérifie au chargement de la page
+document.addEventListener('DOMContentLoaded', checkWelcomeScreen);
+
 /* ── CHARGEMENT INITIAL ─────────────────────────────────── */
 
+// Ajouter le bouton scroll-to-top
+const scrollTopBtn = document.createElement('button');
+scrollTopBtn.className = 'scroll-top';
+scrollTopBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 15l-6-6-6 6"/></svg>`;
+scrollTopBtn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+document.body.appendChild(scrollTopBtn);
+
+// Header scroll effect
+window.addEventListener('scroll', () => {
+  const header = document.querySelector('.header');
+  if (window.scrollY > 10) {
+    header.classList.add('scrolled');
+  } else {
+    header.classList.remove('scrolled');
+  }
+
+  // Show/hide scroll-to-top button
+  if (window.scrollY > 400) {
+    scrollTopBtn.classList.add('visible');
+  } else {
+    scrollTopBtn.classList.remove('visible');
+  }
+});
+
+// Préchargement des images pour le lightbox
+const preloadCache = new Map();
+function preloadImage(src) {
+  if (preloadCache.has(src)) return preloadCache.get(src);
+  const promise = new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+  preloadCache.set(src, promise);
+  return promise;
+}
+
+function preloadAdjacentImages() {
+  if (lightboxIdx === null) return;
+  const list = getFiltered();
+  if (!list.length) return;
+
+  const currentIndex = list.findIndex(p => p.id === lightboxIdx);
+  if (currentIndex === -1) return;
+
+  // Précharge la photo précédente et suivante
+  const prevIndex = (currentIndex - 1 + list.length) % list.length;
+  const nextIndex = (currentIndex + 1) % list.length;
+
+  preloadImage(list[prevIndex].src);
+  preloadImage(list[nextIndex].src);
+}
+
+// Show skeleton loading
+function showSkeletonLoading() {
+  const grid = document.getElementById('photoGrid');
+  const skeletonCount = 12;
+  let skeletonHTML = '<div class="skeleton-grid">';
+  for (let i = 0; i < skeletonCount; i++) {
+    const height = 150 + Math.random() * 200; // Random heights for masonry effect
+    skeletonHTML += `<div class="skeleton-card" style="height: ${height}px;"></div>`;
+  }
+  skeletonHTML += '</div>';
+  grid.innerHTML = skeletonHTML;
+}
+
+// Précharge toutes les miniatures avec compteur
+async function preloadAll() {
+  const loadPerc = document.getElementById('load-perc');
+  const loadStatus = document.getElementById('load-status');
+  const preloader = document.getElementById('preloader');
+  
+  if (!photos.length || !preloader) return;
+  
+  const totalImages = photos.length;
+  let loadedCount = 0;
+  
+  const updateProgress = () => {
+    const percentage = Math.round((loadedCount / totalImages) * 100);
+    if (loadPerc) loadPerc.textContent = `${percentage}%`;
+    
+    // Change le texte selon l'avancement
+    if (loadStatus) {
+      if (percentage < 30) {
+        loadStatus.textContent = 'Préparation du flash...';
+      } else if (percentage < 60) {
+        loadStatus.textContent = 'Flash activé...';
+      } else if (percentage < 90) {
+        loadStatus.textContent = 'Mise au point...';
+      } else {
+        loadStatus.textContent = 'Développement...';
+      }
+    }
+    
+    // Quand 100% atteint, attend 500ms puis cache le preloader et démarre les animations
+    if (loadedCount === totalImages) {
+      setTimeout(() => {
+        if (preloader) preloader.classList.add('hidden');
+        // Déclenche les animations du splash screen
+        const welcomeScreen = document.getElementById('welcome-screen');
+        if (welcomeScreen) welcomeScreen.classList.add('start-anim');
+        animateCounter();
+      }, 500);
+    }
+  };
+  
+  // Crée des promesses pour chaque image
+  const loadPromises = photos.map((photo) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        loadedCount++;
+        updateProgress();
+        resolve();
+      };
+      img.onerror = () => {
+        loadedCount++;
+        updateProgress();
+        resolve(); // Continue même si une image échoue
+      };
+      img.src = photo.thumb || photo.src;
+    });
+  });
+  
+  await Promise.all(loadPromises);
+}
+
 async function init() {
+  // Show skeleton loading first
+  showSkeletonLoading();
+
   try {
     const res = await fetch('photos.json');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     photos = await res.json();
 
+    // Précharge toutes les miniatures avant d'afficher le splash
+    await preloadAll();
+
+    // Démarre la preview animée du splash screen
+    initHomePreview();
+
     // Récupère les favoris sauvegardés dans le navigateur
     const savedFavs = JSON.parse(localStorage.getItem('favs') || '[]');
     photos.forEach(p => { p.fav = savedFavs.includes(p.src); });
 
-    // Récupère la préférence de grille (2 ou 4 colonnes)
-    gridColumns = parseInt(localStorage.getItem('gridColumns') || '2');
-    document.getElementById('photoGrid').className = `grid grid-${gridColumns}`;
-
     buildHourFilters();
+    gridColumns = parseInt(localStorage.getItem('gridColumns') || '2');
+    applyGrid();
     render();
     updateSubtitle();
+    
+    // Active le Livre d'Or side-drawer
+    initGuestbook();
   } catch (err) {
     document.getElementById('photoGrid').innerHTML = `
       <div class="empty" style="grid-column:1/-1">
@@ -107,7 +449,6 @@ function getFiltered() {
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
     list = list.filter(p =>
-      (p.caption || '').toLowerCase().includes(q) ||
       (p.time || '').includes(q)
     );
   }
@@ -147,20 +488,16 @@ function render() {
   }
 
   grid.innerHTML = list.map(p => {
-    const captionHtml = p.caption
-      ? `<p class="photo-caption">${escHtml(p.caption)}</p>`
-      : '';
     // Utilise la miniature pour la grille, fallback sur src si absent
     const thumbSrc = p.thumb || p.src;
     return `
       <div class="photo-card" onclick="openLightbox(${p.id})">
         <img
           data-src="${escHtml(thumbSrc)}"
-          alt="${escHtml(p.caption || p.time || '')}"
+          alt="${escHtml(p.time || '')}"
           class="lazy-img"
         />
         <div class="photo-overlay">
-          ${captionHtml}
           <p class="photo-time">${escHtml(p.time || '')}</p>
         </div>
         <button
@@ -177,6 +514,36 @@ function render() {
 
   // Déclencher le lazy loading sur les nouvelles images
   observeLazyImages();
+
+  // Scroll Reveal - anime les photos au scroll avec délai aléatoire
+  initScrollReveal();
+}
+
+/* ── SCROLL REVEAL ─────────────────────────────────────────── */
+let revealObserver = null;
+
+function initScrollReveal() {
+  const cards = document.querySelectorAll('.photo-card:not(.visible)');
+  
+  revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry, index) => {
+      if (entry.isIntersecting) {
+        // Délai aléatoire entre 0 et 300ms pour effet organique
+        const delay = Math.random() * 300;
+        setTimeout(() => {
+          entry.target.classList.add('visible');
+        }, delay);
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, {
+    threshold: 0.15,
+    rootMargin: '0px 0px -50px 0px'
+  });
+
+  cards.forEach(card => {
+    revealObserver.observe(card);
+  });
 }
 
 /* ── ACTIONS UTILISATEUR ─────────────────────────────────── */
@@ -195,20 +562,72 @@ function toggleSort() {
 }
 
 function toggleGrid() {
-  // Cycle: 2 -> 3 -> 4 -> 2
   gridColumns = gridColumns === 2 ? 3 : (gridColumns === 3 ? 4 : 2);
-  localStorage.setItem('gridColumns', gridColumns);
-  document.getElementById('photoGrid').className = `grid grid-${gridColumns}`;
+  applyGrid();
   const label = gridColumns === 2 ? 'grandes photos' : (gridColumns === 3 ? 'photos moyennes' : 'petites photos');
   showToast(`Vue : ${label}`);
 }
 
+function applyGrid() {
+  const grid = document.getElementById('photoGrid');
+  grid.classList.remove('grid-2', 'grid-3', 'grid-4');
+  grid.classList.add(`grid-${gridColumns}`);
+  localStorage.setItem('gridColumns', gridColumns);
+}
+
 /* ── FAVORIS ─────────────────────────────────────────────── */
+
+// Mini confetti effect
+function triggerConfetti(x, y) {
+  const colors = ['#e05555', '#ff6b6b', '#ff8e8e', '#ffb4b4'];
+  const particleCount = 12;
+
+  for (let i = 0; i < particleCount; i++) {
+    const particle = document.createElement('div');
+    particle.style.cssText = `
+      position: fixed;
+      left: ${x}px;
+      top: ${y}px;
+      width: 6px;
+      height: 6px;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1000;
+    `;
+    document.body.appendChild(particle);
+
+    const angle = (Math.PI * 2 * i) / particleCount;
+    const velocity = 30 + Math.random() * 30;
+    const tx = Math.cos(angle) * velocity;
+    const ty = Math.sin(angle) * velocity;
+
+    particle.animate([
+      { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+      { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 }
+    ], {
+      duration: 500 + Math.random() * 200,
+      easing: 'cubic-bezier(0, .9, .57, 1)',
+    }).onfinish = () => particle.remove();
+  }
+}
 
 function toggleFav(e, id) {
   e.stopPropagation();
+  haptic(15);
   const photo = photos.find(p => p.id === id);
-  if (photo) photo.fav = !photo.fav;
+  if (photo) {
+    const wasFav = photo.fav;
+    photo.fav = !photo.fav;
+
+    // Confetti si on ajoute aux favoris
+    if (!wasFav && photo.fav) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      triggerConfetti(centerX, centerY);
+    }
+  }
   saveFavs();
   updateFavChip();
   updateSubtitle();
@@ -222,16 +641,36 @@ function saveFavs() {
 
 /* ── LIGHTBOX ────────────────────────────────────────────── */
 
-function openLightbox(id) {
+async function openLightbox(id) {
   lightboxIdx = id;
   const p = photos.find(photo => photo.id === id);
-  document.getElementById('lbImg').src    = p.src;
-  document.getElementById('lbImg').alt    = p.caption || '';
-  document.getElementById('lbCaption').textContent = p.caption || '(pas de légende)';
-  document.getElementById('lbTime').textContent    = p.time    || '';
-  updateLbFavBtn();
-  document.getElementById('lightbox').classList.add('open');
+  const lbImg = document.getElementById('lbImg');
+  const lightbox = document.getElementById('lightbox');
+
+  // Reset image state
+  lbImg.classList.remove('loaded');
+  lbImg.alt = p.time || '';
+  document.getElementById('lbTime').textContent = p.time || '';
+
+  // Show lightbox first with transition
+  lightbox.classList.add('open');
   document.body.style.overflow = 'hidden';
+
+  // Précharge l'image avant de l'afficher
+  try {
+    await preloadImage(p.src);
+    lbImg.src = p.src;
+    lbImg.classList.add('loaded');
+  } catch (e) {
+    // Fallback: affiche quand même
+    lbImg.src = p.src;
+    lbImg.classList.add('loaded');
+  }
+
+  updateLbFavBtn();
+
+  // Précharge les images adjacentes
+  preloadAdjacentImages();
 }
 
 function closeLightbox() {
@@ -251,28 +690,34 @@ function prevPhoto() {
   if (lightboxIdx === null) return;
   const list = getFiltered();
   if (!list.length) return;
-  
+
   // Trouve l'index actuel dans la liste filtrée
   const currentIndex = list.findIndex(p => p.id === lightboxIdx);
   if (currentIndex === -1) return;
-  
+
   // Photo précédente (ou dernière si au début)
   const prevIndex = (currentIndex - 1 + list.length) % list.length;
   openLightbox(list[prevIndex].id);
+
+  // Précharge les images adjacentes après la transition
+  setTimeout(preloadAdjacentImages, 500);
 }
 
 function nextPhoto() {
   if (lightboxIdx === null) return;
   const list = getFiltered();
   if (!list.length) return;
-  
+
   // Trouve l'index actuel dans la liste filtrée
   const currentIndex = list.findIndex(p => p.id === lightboxIdx);
   if (currentIndex === -1) return;
-  
+
   // Photo suivante (ou première si à la fin)
   const nextIndex = (currentIndex + 1) % list.length;
   openLightbox(list[nextIndex].id);
+
+  // Précharge les images adjacentes après la transition
+  setTimeout(preloadAdjacentImages, 500);
 }
 
 /* ── DIAPORAMA ────────────────────────────────────────────── */
@@ -418,10 +863,16 @@ function setSlideshowSpeed(speed) {
 function startKenBurns() {
   const wrapper = document.getElementById('lbImgWrapper');
   const img = document.getElementById('lbImg');
+  const progressBar = document.getElementById('lbProgressBar');
+  const progressFill = document.getElementById('lbProgressFill');
   if (!wrapper || !img) return;
   
   // Supprime la classe pour réinitialiser l'animation
   img.classList.remove('ken-burns');
+  
+  // Réinitialise la barre de progression
+  if (progressBar) progressBar.classList.remove('active');
+  if (progressFill) progressFill.style.width = '0%';
   
   // Force un reflow pour que la suppression soit prise en compte
   void img.offsetWidth;
@@ -432,11 +883,16 @@ function startKenBurns() {
   
   // Ajoute la classe pour démarrer l'animation
   img.classList.add('ken-burns');
+  
+  // Active la barre de progression
+  if (progressBar) progressBar.classList.add('active');
 }
 
 function stopKenBurns() {
   const img = document.getElementById('lbImg');
+  const progressBar = document.getElementById('lbProgressBar');
   if (img) img.classList.remove('ken-burns');
+  if (progressBar) progressBar.classList.remove('active');
 }
 
 function updateLbFavBtn() {
@@ -456,6 +912,7 @@ function updateLbFavBtn() {
 
 function toggleLightboxFav() {
   if (lightboxIdx === null) return;
+  haptic(15);
   const photo = photos.find(p => p.id === lightboxIdx);
   if (photo) photo.fav = !photo.fav;
   saveFavs();
@@ -583,16 +1040,29 @@ function observeLazyImages() {
           const img = entry.target;
           const src = img.getAttribute('data-src');
           if (src) {
-            img.src = src;
-            img.removeAttribute('data-src');
-            img.classList.remove('lazy-img');
-            img.classList.add('loaded');
+            // Progressive loading with blur effect
+            img.classList.add('loading');
+
+            const newImg = new Image();
+            newImg.onload = () => {
+              img.src = src;
+              img.classList.remove('lazy-img', 'loading');
+              img.classList.add('loaded');
+              lazyObserver.unobserve(img);
+            };
+            newImg.onerror = () => {
+              // Fallback: load anyway
+              img.src = src;
+              img.classList.remove('lazy-img', 'loading');
+              img.classList.add('loaded');
+              lazyObserver.unobserve(img);
+            };
+            newImg.src = src;
           }
-          lazyObserver.unobserve(img);
         }
       });
     }, {
-      rootMargin: '100px', // Charge un peu avant d'entrer dans le viewport
+      rootMargin: '150px', // Charge un peu avant d'entrer dans le viewport
       threshold: 0.01
     });
   }
@@ -605,10 +1075,78 @@ function observeLazyImages() {
 
 /* ── CLAVIER ─────────────────────────────────────────────── */
 
+// Aide des raccourcis clavier
+function showShortcutsHelp() {
+  const helpDiv = document.createElement('div');
+  helpDiv.className = 'shortcuts-help';
+  helpDiv.innerHTML = `
+    <div class="shortcuts-overlay" onclick="hideShortcutsHelp()"></div>
+    <div class="shortcuts-modal">
+      <h3>Raccourcis clavier</h3>
+      <div class="shortcuts-list">
+        <div class="shortcut"><kbd>←</kbd> <span>Photo précédente</span></div>
+        <div class="shortcut"><kbd>→</kbd> <span>Photo suivante</span></div>
+        <div class="shortcut"><kbd>Space</kbd> <span>Pause / Lecture diaporama</span></div>
+        <div class="shortcut"><kbd>F</kbd> <span>Ajouter aux favoris</span></div>
+        <div class="shortcut"><kbd>D</kbd> <span>Télécharger la photo</span></div>
+        <div class="shortcut"><kbd>Esc</kbd> <span>Fermer le lightbox</span></div>
+        <div class="shortcut"><kbd>?</kbd> <span>Afficher cette aide</span></div>
+      </div>
+      <button class="shortcuts-close" onclick="hideShortcutsHelp()">Fermer</button>
+    </div>
+  `;
+  document.body.appendChild(helpDiv);
+  setTimeout(() => helpDiv.classList.add('visible'), 10);
+}
+
+function hideShortcutsHelp() {
+  const helpDiv = document.querySelector('.shortcuts-help');
+  if (helpDiv) {
+    helpDiv.classList.remove('visible');
+    setTimeout(() => helpDiv.remove(), 300);
+  }
+}
+
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeLightbox();
-  if (e.key === 'ArrowLeft') prevPhoto();
-  if (e.key === 'ArrowRight') nextPhoto();
+  // Ignore si un input est focus
+  if (document.activeElement?.tagName === 'INPUT') return;
+
+  if (e.key === '?') {
+    showShortcutsHelp();
+    return;
+  }
+
+  // Si le modal d'aide est ouvert, Escape le ferme
+  if (document.querySelector('.shortcuts-help')) {
+    if (e.key === 'Escape') {
+      hideShortcutsHelp();
+    }
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    closeLightbox();
+  } else if (e.key === 'ArrowLeft') {
+    prevPhoto();
+  } else if (e.key === 'ArrowRight' || e.key === ' ') {
+    // Space = pause/play en mode diaporama, sinon next photo
+    if (slideshowInterval && e.key === ' ') {
+      e.preventDefault();
+      toggleSlideshowPause();
+    } else {
+      nextPhoto();
+    }
+  } else if (e.key.toLowerCase() === 'f') {
+    // F = toggle favori dans lightbox
+    if (lightboxIdx !== null) {
+      toggleLightboxFav();
+    }
+  } else if (e.key.toLowerCase() === 'd') {
+    // D = download current photo
+    if (lightboxIdx !== null) {
+      downloadSingle();
+    }
+  }
 });
 
 /* ── PLEIN ÉCRAN ─────────────────────────────────────────── */
@@ -622,101 +1160,419 @@ document.addEventListener('fullscreenchange', () => {
   }
 });
 
-/* ── PINCH TO ZOOM (MOBILE) ──────────────────────────────── */
-
-(function setupPinchZoom() {
-  const grid = document.getElementById('photoGrid');
-  let initialDistance = 0;
-  let initialColumns = 2;
-  let isPinching = false;
-  let lastPinchTime = 0;
-
-  function getDistance(touches) {
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  }
-
-  grid.addEventListener('touchstart', e => {
-    if (e.touches.length === 2) {
-      isPinching = true;
-      initialDistance = getDistance(e.touches);
-      initialColumns = gridColumns;
-      e.preventDefault();
-    }
-  }, { passive: false });
-
-  grid.addEventListener('touchmove', e => {
-    if (!isPinching || e.touches.length !== 2) return;
-    e.preventDefault();
-
-    // Debounce: wait 300ms between pinch actions
-    const now = Date.now();
-    if (now - lastPinchTime < 300) return;
-
-    const currentDistance = getDistance(e.touches);
-    const diff = currentDistance - initialDistance;
-    const threshold = 50; // minimum pixels to trigger
-
-    if (Math.abs(diff) > threshold) {
-      if (diff > 0 && gridColumns > 2) {
-        // Pinch out (zoom in) → fewer columns, bigger photos
-        gridColumns--;
-      } else if (diff < 0 && gridColumns < 4) {
-        // Pinch in (zoom out) → more columns, smaller photos
-        gridColumns++;
-      }
-
-      localStorage.setItem('gridColumns', gridColumns);
-      grid.className = `grid grid-${gridColumns}`;
-      const label = gridColumns === 2 ? 'grandes photos' : (gridColumns === 3 ? 'photos moyennes' : 'petites photos');
-      showToast(`Vue : ${label}`);
-
-      lastPinchTime = now;
-      initialDistance = currentDistance;
-    }
-  }, { passive: false });
-
-  grid.addEventListener('touchend', () => {
-    isPinching = false;
-  });
-
-  grid.addEventListener('touchcancel', () => {
-    isPinching = false;
-  });
-})();
-
 /* ── SWIPE LIGHTBOX (MOBILE) ─────────────────────────────── */
 
 (function setupLightboxSwipe() {
   const lightbox = document.getElementById('lightbox');
+  const lbImgWrapper = document.getElementById('lbImgWrapper');
+  const lbImg = document.getElementById('lbImg');
+
   let touchStartX = 0;
-  let touchEndX = 0;
-  const minSwipeDistance = 50; // Distance minimale pour considérer un swipe
+  let touchStartY = 0;
+  let touchCurrentX = 0;
+  let touchCurrentY = 0;
+  let isSwiping = false;
+  let isVerticalSwipe = false;
+
+  const minSwipeDistance = 50; // Distance minimale pour swipe horizontal
+  const dismissThreshold = 150; // Distance pour fermer avec swipe down
+  const maxDismissDistance = 300; // Distance max avant fermeture forcée
 
   lightbox.addEventListener('touchstart', e => {
-    touchStartX = e.changedTouches[0].screenX;
+    if (e.touches.length !== 1) return;
+
+    touchStartX = e.touches[0].screenX;
+    touchStartY = e.touches[0].screenY;
+    touchCurrentX = touchStartX;
+    touchCurrentY = touchStartY;
+    isSwiping = true;
+    isVerticalSwipe = false;
+
+    // Désactiver les transitions pendant le drag
+    lbImg.style.transition = 'none';
+    lightbox.style.transition = 'none';
+  }, { passive: true });
+
+  lightbox.addEventListener('touchmove', e => {
+    if (!isSwiping || e.touches.length !== 1) return;
+
+    touchCurrentX = e.touches[0].screenX;
+    touchCurrentY = e.touches[0].screenY;
+
+    const deltaX = touchCurrentX - touchStartX;
+    const deltaY = touchCurrentY - touchStartY;
+
+    // Déterminer la direction du swipe après 10px de mouvement
+    if (!isVerticalSwipe && Math.abs(deltaY) > 10 && Math.abs(deltaY) > Math.abs(deltaX)) {
+      isVerticalSwipe = true;
+    }
+
+    if (isVerticalSwipe && deltaY > 0) {
+      // Swipe vers le bas : déplacer, rétrécir et réduire l'opacité
+      const progress = Math.min(deltaY / maxDismissDistance, 1);
+      const translateY = deltaY;
+      const scale = 1 - (progress * 0.15); // Rétrécit jusqu'à 85%
+      const opacity = 1 - (progress * 0.5); // Opacité descend à 50%
+
+      lbImg.style.transform = `translateY(${translateY}px) scale(${scale})`;
+      lightbox.style.background = `rgba(0, 0, 0, ${0.95 * opacity})`;
+    }
   }, { passive: true });
 
   lightbox.addEventListener('touchend', e => {
-    touchEndX = e.changedTouches[0].screenX;
-    handleSwipe();
-  }, { passive: true });
+    if (!isSwiping) return;
 
-  function handleSwipe() {
-    const swipeDistance = touchEndX - touchStartX;
-    
-    if (Math.abs(swipeDistance) > minSwipeDistance) {
-      if (swipeDistance > 0) {
-        // Swipe vers la droite → photo précédente
+    isSwiping = false;
+
+    // Réactiver les transitions
+    lbImg.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s ease';
+    lightbox.style.transition = 'background 0.3s ease';
+
+    const deltaX = touchCurrentX - touchStartX;
+    const deltaY = touchCurrentY - touchStartY;
+
+    if (isVerticalSwipe && deltaY > dismissThreshold) {
+      // Fermer la lightbox
+      lbImg.style.transform = `translateY(${window.innerHeight}px) scale(0.8)`;
+      lightbox.style.background = 'rgba(0, 0, 0, 0)';
+
+      setTimeout(() => {
+        closeLightbox();
+        // Réinitialiser les styles après fermeture
+        setTimeout(() => {
+          lbImg.style.transform = '';
+          lightbox.style.background = '';
+        }, 50);
+      }, 200);
+    } else if (isVerticalSwipe) {
+      // Revenir à la position initiale
+      lbImg.style.transform = '';
+      lightbox.style.background = '';
+    } else if (Math.abs(deltaX) > minSwipeDistance) {
+      // Swipe horizontal : changer de photo
+      if (deltaX > 0) {
         prevPhoto();
       } else {
-        // Swipe vers la gauche → photo suivante
         nextPhoto();
       }
     }
-  }
+  }, { passive: true });
+
+  lightbox.addEventListener('touchcancel', () => {
+    if (!isSwiping) return;
+
+    isSwiping = false;
+    isVerticalSwipe = false;
+
+    // Réinitialiser avec transition
+    lbImg.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+    lbImg.style.transform = '';
+    lightbox.style.transition = 'background 0.3s ease';
+    lightbox.style.background = '';
+  }, { passive: true });
 })();
+
+/* ── PARTAGE ────────────────────────────────────────────── */
+
+async function shareSite() {
+  const shareData = {
+    title: 'Soirée de méchant salopard',
+    text: 'Check les photos de la soirée ! 📸',
+    url: window.location.href
+  };
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData);
+    } else {
+      throw new Error();
+    }
+  } catch (err) {
+    navigator.clipboard.writeText(window.location.href);
+    alert('Lien copié dans le presse-papiers !');
+  }
+}
+
+/* ─── LIVRE D'OR ─────────────────────────────────────────── */
+
+// Configuration Firebase pour synchronisation des messages
+const firebaseConfig = {
+  apiKey: 'AIzaSyBkfWXioiQ00fENNPQgaN2D8GOsNhkoVVw',
+  authDomain: 'livre-d-or-c3011.firebaseapp.com',
+  databaseURL: 'https://livre-d-or-c3011-default-rtdb.europe-west1.firebasedatabase.app/',
+  projectId: 'livre-d-or-c3011',
+  storageBucket: 'livre-d-or-c3011.firebasestorage.app',
+  messagingSenderId: '154185620344',
+  appId: '1:154185620344:web:510a3ee6e4c1467ac4c68d'
+};
+
+// Variables globales Firebase
+let guestbookDatabase = null;
+let guestbookMessagesRef = null;
+const guestbookEntries = []; // Cache local des messages
+let messageCount = 0; // Compteur de messages pour le badge
+
+/**
+ * Échappe les caractères HTML pour la sécurité
+ */
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/**
+ * Initialise le Livre d'Or avec le side-drawer glassmorphism
+ * Connecté à Firebase Realtime Database pour synchro multi-utilisateurs
+ */
+function initGuestbook() {
+  const toggle = document.getElementById('guestbook-toggle');
+  const drawer = document.getElementById('guestbook-drawer');
+  const closeBtn = document.getElementById('drawer-close');
+  const form = document.getElementById('guestbook-form');
+  const textarea = document.getElementById('gb-message');
+  const charCount = document.getElementById('gb-char-count');
+  
+  if (!toggle || !drawer) return;
+  
+  // Initialise Firebase si pas déjà fait
+  if (!guestbookDatabase && window.firebaseApp) {
+    const { initializeApp, getDatabase, ref, onChildAdded } = window.firebaseApp;
+    const app = initializeApp(firebaseConfig);
+    guestbookDatabase = getDatabase(app);
+    guestbookMessagesRef = ref(guestbookDatabase, 'messages');
+    
+    // Écoute les nouveaux messages en temps réel
+    onChildAdded(guestbookMessagesRef, (snapshot) => {
+      const message = snapshot.val();
+      if (message) {
+        addGuestbookEntryToUI(message);
+      }
+    });
+  }
+  
+  // Crée l'overlay sombre
+  const overlay = document.createElement('div');
+  overlay.className = 'drawer-overlay';
+  document.body.appendChild(overlay);
+  
+  // Ouverture du drawer
+  toggle.addEventListener('click', () => {
+    drawer.classList.add('drawer-open');
+    overlay.classList.add('visible');
+    document.body.style.overflow = 'hidden';
+    // Note: Les messages sont gérés uniquement par onChildAdded en temps réel
+    // Pas de boucle manuelle pour éviter les doublons
+  });
+  
+  // Fermeture via le bouton X
+  closeBtn.addEventListener('click', closeDrawer);
+  
+  // Fermeture via l'overlay (clic en dehors)
+  overlay.addEventListener('click', closeDrawer);
+  
+  // Fermeture avec la touche Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && drawer.classList.contains('drawer-open')) {
+      closeDrawer();
+    }
+  });
+  
+  function closeDrawer() {
+    drawer.classList.remove('drawer-open');
+    overlay.classList.remove('visible');
+    document.body.style.overflow = '';
+    // Met à jour le badge quand on ferme le drawer
+    updateMessageBadge();
+  }
+  
+  // Compteur de caractères
+  if (textarea && charCount) {
+    textarea.addEventListener('input', () => {
+      const count = textarea.value.length;
+      charCount.textContent = `${count}/280`;
+    });
+  }
+  
+  // Soumission du formulaire vers Firebase
+  if (form) {
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Signer ✍️';
+    
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const name = document.getElementById('gb-name').value.trim();
+      const message = document.getElementById('gb-message').value.trim();
+      
+      if (!name || !message) return;
+      
+      // Vérifie que Firebase est prêt
+      if (!guestbookDatabase || !window.firebaseApp) {
+        showToast('Connexion impossible... Réessaie !');
+        return;
+      }
+      
+      // Animation du bouton pendant l'envoi
+      if (submitBtn) {
+        submitBtn.innerHTML = 'Envoi...';
+        submitBtn.disabled = true;
+      }
+      
+      // Crée l'entrée
+      const entry = {
+        name: name,
+        message: message,
+        timestamp: Date.now(),
+        date: new Date().toLocaleString('fr-FR', {
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      };
+      
+      // Envoie à Firebase Realtime Database
+      const { push } = window.firebaseApp;
+      push(guestbookMessagesRef, entry)
+        .then(() => {
+          // Reset formulaire
+          form.reset();
+          if (charCount) charCount.textContent = '0/280';
+          
+          // Animation de succès sur le bouton
+          if (submitBtn) {
+            submitBtn.innerHTML = 'Envoyé ✓';
+            submitBtn.style.background = 'rgba(81, 207, 102, 0.3)';
+            submitBtn.style.borderColor = 'rgba(81, 207, 102, 0.5)';
+            
+            setTimeout(() => {
+              submitBtn.innerHTML = originalBtnText;
+              submitBtn.style.background = '';
+              submitBtn.style.borderColor = '';
+              submitBtn.disabled = false;
+            }, 2000);
+          }
+          
+          showToast('Message envoyé ! ✨');
+        })
+        .catch((error) => {
+          console.error('Erreur envoi message:', error);
+          showToast('Erreur... Réessaie !');
+          if (submitBtn) {
+            submitBtn.innerHTML = originalBtnText;
+            submitBtn.disabled = false;
+          }
+        });
+    });
+  }
+}
+
+/**
+ * Ajoute un message à l'interface (appelé par onChildAdded)
+ * Affiche uniquement les messages valides, ordre chronologique (anciens en haut)
+ */
+function addGuestbookEntryToUI(entry) {
+  // Sécurité : ignore les messages vides ou invalides
+  if (!entry || !entry.name || !entry.message || !entry.name.trim() || !entry.message.trim()) {
+    return;
+  }
+  
+  // Vérifie si déjà présent (évite les doublons via timestamp + nom)
+  if (guestbookEntries.some(e => e.timestamp === entry.timestamp && e.name === entry.name)) {
+    return;
+  }
+  
+  // Ajoute en fin de liste pour ordre chronologique (anciens en haut, nouveaux en bas)
+  guestbookEntries.push(entry);
+  
+  // Incrémente le compteur de messages
+  messageCount++;
+  updateMessageBadge();
+  
+  const list = document.getElementById('guestbook-list');
+  if (!list) return;
+  
+  // Supprime le message "Aucun message" si présent
+  const emptyMsg = list.querySelector('.guestbook-empty');
+  if (emptyMsg) {
+    emptyMsg.remove();
+  }
+  
+  // Crée l'élément avec animation
+  const entryDiv = document.createElement('div');
+  entryDiv.className = 'guestbook-entry';
+  entryDiv.style.animation = 'slideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+  entryDiv.innerHTML = `
+    <div class="entry-header">
+      <span class="entry-name">${escapeHtml(entry.name)}</span>
+      <span class="entry-time">${entry.date}</span>
+    </div>
+    <div class="entry-message">${escapeHtml(entry.message)}</div>
+  `;
+  
+  // Ajoute à la fin (ordre chronologique : anciens en haut, nouveaux en bas)
+  list.appendChild(entryDiv);
+  
+  // Auto-scroll vers le bas pour voir le nouveau message
+  const drawerContent = document.querySelector('.drawer-content');
+  if (drawerContent) {
+    drawerContent.scrollTo({
+      top: drawerContent.scrollHeight,
+      behavior: 'smooth'
+    });
+  }
+}
+
+/**
+ * Met à jour la pastille de notification sur le bouton
+ * Affiche le nombre de messages et anime le changement
+ * Se cache automatiquement si le drawer est ouvert
+ */
+function updateMessageBadge() {
+  const badge = document.getElementById('message-count');
+  const drawer = document.getElementById('guestbook-drawer');
+  if (!badge) return;
+  
+  // Si le drawer est ouvert, on cache le badge
+  if (drawer && drawer.classList.contains('drawer-open')) {
+    badge.classList.remove('visible');
+    return;
+  }
+  
+  // Affiche le badge seulement s'il y a des messages
+  if (messageCount > 0) {
+    badge.textContent = messageCount > 99 ? '99+' : messageCount;
+    badge.classList.add('visible');
+    
+    // Animation pop quand le chiffre change
+    badge.classList.add('pop');
+    setTimeout(() => {
+      badge.classList.remove('pop');
+    }, 300);
+  } else {
+    badge.classList.remove('visible');
+  }
+}
+
+/**
+ * Affiche l'état vide du Livre d'Or si aucun message
+ * Note : Les messages sont ajoutés un par un via onChildAdded en temps réel
+ */
+function renderGuestbookEntries() {
+  const list = document.getElementById('guestbook-list');
+  if (!list) return;
+  
+  // Affiche uniquement le message vide si la liste est vide
+  // Les messages réels sont gérés par addGuestbookEntryToUI appelé par onChildAdded
+  if (guestbookEntries.length === 0) {
+    list.innerHTML = `
+      <div class="guestbook-empty">
+        Aucun message encore...<br>
+        Sois le premier à signer ! ✍️
+      </div>
+    `;
+  }
+}
 
 /* ── LANCEMENT ───────────────────────────────────────────── */
 

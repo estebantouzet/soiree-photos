@@ -1,33 +1,54 @@
-# 📷 Galerie Photo de Soirée
+# � Galerie Photo de Soirée — Web App Immersive
 
-Site web mobile pour partager les photos d'une soirée.  
-Tri par heure, recherche, favoris, téléchargement global.
+Galerie photo interactive avec Livre d'Or temps réel.  
+Partage tes souvenirs avec tes invités et laisse-les signer le livre d'or en temps réel !
+
+✨ **Galerie immersive** — Design glassmorphism avec animations fluides  
+💬 **Livre d'Or temps réel** — Synchronisation instantanée entre utilisateurs via Firebase  
+🔔 **Notifications dynamiques** — Badge compteur sur le bouton latéral  
+🖼️ **Optimisation automatique** — Miniatures WebP générées par scripts Python
 
 ---
 
-## Structure du projet
+## 🏗️ Architecture Technique
+
+### Backend & Social
+- **Firebase Realtime Database** (v10+) — Synchronisation en temps réel des messages du Livre d'Or
+- **LocalStorage** — Favoris et préférences utilisateur
+
+### Traitement d'Images
+- **Python + Pillow** — Génération automatique de miniatures WebP 400×400px
+- **Format WebP** — Performance optimale avec compression moderne
+
+### Frontend
+- **Vanilla JavaScript** — Pas de framework, code pur et performant
+- **CSS Glassmorphism** — Effets de verre, animations smooth
+- **Intersection Observer** — Lazy loading des images
+
+---
+
+## 📁 Structure du projet
 
 ```
 soiree/
-├── index.html             ← page principale
-├── style.css              ← tous les styles
-├── app.js                 ← toute la logique
-├── photos.json            ← généré automatiquement par le script
-├── generate_thumbnails.py ← script Python pour générer les miniatures
-├── generate_json.py       ← script Python à lancer une fois
-├── reset.py               ← script pour réinitialiser le projet
-├── legendes.csv           ← légendes optionnelles (à remplir)
-└── photos/                ← ⬅️ place tes photos ici
+├── index.html             ← 🎨 Page principale + Config Firebase
+├── style.css              ← ✨ Styles glassmorphism + animations
+├── app.js                 ← ⚡ Toute la logique + Livre d'Or Firebase
+├── photos.json            ← 📋 Généré automatiquement
+├── generate_thumbnails.py ← 🖼️ Script Python (Pillow) → miniatures WebP
+├── generate_json.py       ← 📊 Génère le JSON avec métadonnées EXIF
+├── reset.py               ← 🔄 Réinitialise le projet pour nouvelle soirée
+└── photos/                ← ⬅️ 📷 Place tes photos ici
     ├── IMG_0001.jpg
     ├── IMG_0002.jpg
-    └── thumbs/            ← miniatures générées automatiquement
+    └── thumbs/            ← ✨ Miniatures générées (400×400px WebP)
         ├── IMG_0001.webp
         └── ...
 ```
 
 ---
 
-## Mise en route
+## 🚀 Mise en route
 
 ### 1. Installer Python et Pillow
 
@@ -59,24 +80,7 @@ python3 generate_json.py
 Le script lit automatiquement la date/heure depuis les métadonnées EXIF  
 de chaque photo et génère `photos.json` avec les chemins des miniatures.
 
-### 5. Ajouter des légendes (optionnel)
-
-Remplis le fichier `legendes.csv` :
-
-```csv
-nom_fichier,legende
-IMG_0001.jpg,Arrivée de Julie
-IMG_0002.jpg,Premier verre !
-```
-
-Puis relance les scripts dans l'ordre :
-
-```bash
-python3 generate_thumbnails.py
-python3 generate_json.py --captions legendes.csv
-```
-
-### 6. Lancer le site en local
+### 5. Lancer le site en local
 
 ```bash
 # Python (recommandé)
@@ -92,7 +96,7 @@ npx serve .
 
 ---
 
-## Déployer en ligne (gratuit)
+## 🌐 Déployer en ligne (gratuit)
 
 ### Option Netlify (la plus simple)
 
@@ -108,7 +112,7 @@ npx serve .
 
 ---
 
-## Nouvelle soirée
+## 🔄 Nouvelle soirée
 
 Pour réinitialiser le projet et recommencer avec de nouvelles photos :
 
@@ -125,12 +129,68 @@ Une confirmation est demandée avant toute suppression.
 
 ---
 
-## Fonctionnalités
+## ⭐ Fonctionnalités
 
-- **Tri par heure** — filtres automatiques générés depuis les données EXIF
-- **Recherche** — filtre les photos par légende en temps réel
-- **Favoris** — sauvegardés dans le navigateur (localStorage)
-- **Lightbox** — visionneuse plein écran avec actions
-- **Téléchargement** — photo individuelle ou toutes les photos visibles
-- **Mode sombre** — automatique selon les préférences système
-- **Optimisé mobile** — responsive, lazy loading des images
+### 🎨 UX Premium
+- **Glassmorphism** — Effets de verre, transparence, blur
+- **Animations fluides** — Transitions cubic-bezier, auto-scroll
+- **Haptic feedback** — Vibrations sur mobile (iOS/Android)
+- **Responsive** — Optimisé pour tous les écrans
+
+### 💬 Livre d'Or Social
+- **Synchro temps réel** — Messages partagés instantanément via Firebase
+- **Badge notification** — Compteur dynamique sur le bouton latéral
+- **Auto-scroll** — Défilement automatique vers les nouveaux messages
+- **Glassmorphism** — Design premium avec slide-in animations
+
+### 📷 Galerie Photos
+- **Tri par heure** — Filtres automatiques depuis les EXIF
+- **Recherche** — Filtre les photos par heure
+- **Favoris** — Sauvegardés dans localStorage avec confettis 🎉
+- **Lightbox** — Visionneuse plein écran avec Ken Burns effect
+- **Téléchargement** — Photo individuelle ou toutes les photos visibles
+
+### ⚡ Performance
+- **Miniatures WebP** — Générées automatiquement par Pillow
+- **Lazy loading** — Images chargées à la volée
+- **Format moderne** — WebP pour une compression optimale
+
+---
+
+## 🔧 Guide de Maintenance
+
+### Ajouter des photos après le lancement
+
+Si tu veux ajouter de nouvelles photos sans tout réinitialiser :
+
+```bash
+# 1. Copie les nouvelles photos dans photos/
+cp /chemin/vers/nouvelles_photos/*.jpg photos/
+
+# 2. Régénère uniquement les miniatures manquantes
+python3 generate_thumbnails.py
+
+# 3. Mets à jour le JSON
+python3 generate_json.py
+
+# 4. Redéploie sur Netlify si nécessaire
+```
+
+### Configuration Firebase
+
+La configuration Firebase se trouve dans `index.html` :
+
+```javascript
+const firebaseConfig = {
+  apiKey: '...',
+  authDomain: '...',
+  databaseURL: '...',
+  // ...
+};
+```
+
+Pour utiliser ta propre base de données, remplace ces valeurs par celles de ton projet Firebase.
+
+---
+
+Made with ❤️ pour des soirées mémorables
