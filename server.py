@@ -65,8 +65,11 @@ def photo_count(slug: str) -> int:
     photos_file = EVENTS_DIR / slug / 'photos.json'
     if not photos_file.exists():
         return 0
-    with open(photos_file, encoding='utf-8') as f:
-        return len(json.load(f))
+    try:
+        with open(photos_file, encoding='utf-8') as f:
+            return len(json.load(f))
+    except (json.JSONDecodeError, ValueError):
+        return 0
 
 
 # ─── Admin ────────────────────────────────────────────────────────────────────
