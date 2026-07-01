@@ -1,0 +1,14 @@
+{
+  "slug": "anniversaire-laly",
+  "title": "Anniversaire Laly",
+  "subtitle": "30/06/2026",
+  "date": "",
+  "pin": "1234",
+  "createdAt": "2026-06-30T17:00:17.494541",
+  "status": "draft",
+  "firebase": {
+    "databaseURL": "",
+    "apiKey": "",
+    "projectId": ""
+  }
+}

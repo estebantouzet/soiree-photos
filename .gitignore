@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Photos (binaires — stockées dans le Volume Railway)
+events/*/photos/*.jpg
+events/*/photos/*.jpeg
+events/*/photos/*.png
+events/*/photos/*.webp
+events/*/photos/*.heic
+events/*/photos/*.tiff
+events/*/photos/*.tif
+events/*/photos/thumbs/
+
+# Ancienne structure (racine)
+photos/
+style.css
+app.js
+index.html
+photos.json
+generate_json.py
+generate_thumbnails.py
+migrate_mae.py
+reset.py
+
+# Logs
+*.log

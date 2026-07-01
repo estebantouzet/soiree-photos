@@ -1,0 +1,14 @@
+{
+  "slug": "mae-18ans-2025",
+  "title": "Soirée d'anniversaire 18 ans Maé",
+  "subtitle": "22 février 2025",
+  "date": "2025-02-22",
+  "pin": "1234",
+  "createdAt": "2026-06-30T16:35:52.980073",
+  "status": "published",
+  "firebase": {
+    "databaseURL": "https://photo-soiree-mae-default-rtdb.europe-west1.firebasedatabase.app/",
+    "apiKey": "AIzaSyCLAfgx3mzg7NBWMWrbqJdpUgvQqg6BBZg",
+    "projectId": "photo-soiree-mae"
+  }
+}
