@@ -193,8 +193,9 @@ def api_list_photos(slug):
 def api_upload_photos(slug):
     event_dir  = EVENTS_DIR / slug
     if not event_dir.exists():
-        abort(404)
+        return jsonify({'error': f"Dossier événement introuvable : {event_dir}"}), 404
     photos_dir = event_dir / 'photos'
+    photos_dir.mkdir(parents=True, exist_ok=True)
     uploaded   = []
     skipped    = []
 
@@ -209,9 +210,12 @@ def api_upload_photos(slug):
         if ext not in SUPPORTED_EXTS:
             skipped.append({'name': file.filename, 'reason': 'extension non supportée'})
             continue
-        dest = photos_dir / file.filename
-        file.save(str(dest))
-        uploaded.append(file.filename)
+        try:
+            dest = photos_dir / file.filename
+            file.save(str(dest))
+            uploaded.append(file.filename)
+        except Exception as e:
+            skipped.append({'name': file.filename, 'reason': str(e)})
 
     return jsonify({'uploaded': uploaded, 'skipped': skipped, 'count': len(uploaded)})
 
@@ -271,6 +275,32 @@ def api_photos_json(slug):
         return jsonify(json.load(f))
 
 
+# ─── Diagnostic ───────────────────────────────────────────────────────────────
+
+@app.route('/health')
+def health():
+    info = {
+        'base_dir':   str(BASE_DIR),
+        'events_dir': str(EVENTS_DIR),
+        'events_dir_exists': EVENTS_DIR.exists(),
+        'events_dir_writable': os.access(str(EVENTS_DIR), os.W_OK),
+        'events_json_exists': EVENTS_JSON.exists(),
+        'events': [],
+    }
+    for event in load_events():
+        slug = event.get('slug')
+        ed = EVENTS_DIR / slug
+        pd = ed / 'photos'
+        info['events'].append({
+            'slug': slug,
+            'dir_exists': ed.exists(),
+            'photos_dir_exists': pd.exists(),
+            'photos_dir_writable': pd.exists() and os.access(str(pd), os.W_OK),
+            'photo_count': len(list(pd.glob('*.*'))) if pd.exists() else 0,
+        })
+    return jsonify(info)
+
+
 # ─── Page d'accueil ───────────────────────────────────────────────────────────
 
 @app.route('/')
@@ -278,7 +308,6 @@ def home():
     events = load_events()
     if not events:
         return '<meta http-equiv="refresh" content="0;url=/admin/">'
-    # Redirige vers le panel admin
     return '<meta http-equiv="refresh" content="0;url=/admin/">'
 
 
