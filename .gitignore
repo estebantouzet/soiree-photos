@@ -21,7 +21,7 @@ events/*/photos/*.tif
 events/*/photos/thumbs/
 
 # Ancienne structure (racine uniquement)
-photos/
+/photos/
 /style.css
 /app.js
 /index.html
