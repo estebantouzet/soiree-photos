@@ -293,11 +293,39 @@ def too_large(e):
     return jsonify({'error': f'Fichier trop volumineux (max {MAX_UPLOAD_MB} Mo)'}), 413
 
 
+# ─── Initialisation Volume Railway ────────────────────────────────────────────
+# Le Volume Railway écrase events/ au démarrage — on recrée les dossiers
+# manquants à partir de events.json pour que les uploads fonctionnent.
+
+def init_event_dirs():
+    for event in load_events():
+        slug = event.get('slug')
+        if not slug:
+            continue
+        event_dir = EVENTS_DIR / slug
+        (event_dir / 'photos' / 'thumbs').mkdir(parents=True, exist_ok=True)
+        config_file = event_dir / 'config.json'
+        if not config_file.exists():
+            config = {
+                'slug':      slug,
+                'title':     event.get('title', slug),
+                'date':      event.get('date', ''),
+                'pin':       '1234',
+                'createdAt': event.get('createdAt', ''),
+                'firebase':  {},
+            }
+            save_event_config(slug, config)
+        photos_file = event_dir / 'photos.json'
+        if not photos_file.exists():
+            with open(photos_file, 'w') as f:
+                json.dump([], f)
+
 # ─── Démarrage ────────────────────────────────────────────────────────────────
 
 EVENTS_DIR.mkdir(exist_ok=True)
 if not EVENTS_JSON.exists():
     save_events([])
+init_event_dirs()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
