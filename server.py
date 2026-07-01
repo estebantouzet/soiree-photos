@@ -191,9 +191,9 @@ def api_list_photos(slug):
 
 @app.route('/api/events/<slug>/photos', methods=['POST'])
 def api_upload_photos(slug):
+    if not ensure_event_dirs(slug):
+        return jsonify({'error': f"Événement '{slug}' introuvable dans events.json"}), 404
     event_dir  = EVENTS_DIR / slug
-    if not event_dir.exists():
-        return jsonify({'error': f"Dossier événement introuvable : {event_dir}"}), 404
     photos_dir = event_dir / 'photos'
     photos_dir.mkdir(parents=True, exist_ok=True)
     uploaded   = []
@@ -323,40 +323,55 @@ def too_large(e):
 
 
 # ─── Initialisation Volume Railway ────────────────────────────────────────────
-# Le Volume Railway écrase events/ au démarrage — on recrée les dossiers
-# manquants à partir de events.json pour que les uploads fonctionnent.
+# Le Volume Railway se monte APRÈS que gunicorn importe server.py, donc on
+# initialise les dossiers au premier before_request (pas au niveau module).
+
+def ensure_event_dirs(slug: str):
+    """Crée les dossiers nécessaires pour un événement donné sur le Volume."""
+    event = next((e for e in load_events() if e.get('slug') == slug), None)
+    if not event:
+        return False
+    event_dir = EVENTS_DIR / slug
+    (event_dir / 'photos' / 'thumbs').mkdir(parents=True, exist_ok=True)
+    config_file = event_dir / 'config.json'
+    if not config_file.exists():
+        save_event_config(slug, {
+            'slug': slug, 'title': event.get('title', slug),
+            'date': event.get('date', ''), 'pin': '1234',
+            'createdAt': event.get('createdAt', ''), 'firebase': {},
+        })
+    photos_file = event_dir / 'photos.json'
+    if not photos_file.exists():
+        with open(photos_file, 'w') as f:
+            json.dump([], f)
+    return True
 
 def init_event_dirs():
     for event in load_events():
         slug = event.get('slug')
-        if not slug:
-            continue
-        event_dir = EVENTS_DIR / slug
-        (event_dir / 'photos' / 'thumbs').mkdir(parents=True, exist_ok=True)
-        config_file = event_dir / 'config.json'
-        if not config_file.exists():
-            config = {
-                'slug':      slug,
-                'title':     event.get('title', slug),
-                'date':      event.get('date', ''),
-                'pin':       '1234',
-                'createdAt': event.get('createdAt', ''),
-                'firebase':  {},
-            }
-            save_event_config(slug, config)
-        photos_file = event_dir / 'photos.json'
-        if not photos_file.exists():
-            with open(photos_file, 'w') as f:
-                json.dump([], f)
+        if slug:
+            ensure_event_dirs(slug)
+
+_dirs_initialized = False
+
+@app.before_request
+def lazy_init():
+    global _dirs_initialized
+    if not _dirs_initialized:
+        _dirs_initialized = True
+        EVENTS_DIR.mkdir(exist_ok=True)
+        if not EVENTS_JSON.exists():
+            save_events([])
+        init_event_dirs()
 
 # ─── Démarrage ────────────────────────────────────────────────────────────────
 
-EVENTS_DIR.mkdir(exist_ok=True)
-if not EVENTS_JSON.exists():
-    save_events([])
-init_event_dirs()
-
 if __name__ == '__main__':
+    # En local, init immédiate (pas de volume Railway)
+    EVENTS_DIR.mkdir(exist_ok=True)
+    if not EVENTS_JSON.exists():
+        save_events([])
+    init_event_dirs()
     port = int(os.environ.get('PORT', 8080))
     debug = os.environ.get('FLASK_ENV') != 'production'
     print('🎉  Serveur démarré')
