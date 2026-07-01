@@ -263,12 +263,37 @@ document.getElementById('btnClearQueue')?.addEventListener('click', () => {
   document.getElementById('adminUploadInput').value = '';
 });
 
+async function compressImage(file, maxDim = 1920, quality = 0.82) {
+  // HEIC/TIFF — pas de support canvas natif, on envoie tel quel
+  if (/\.(heic|tiff?|tif)$/i.test(file.name)) return file;
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width >= height) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else                 { width  = Math.round(width  * maxDim / height); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => {
+        const outName = file.name.replace(/\.[^.]+$/, '.jpg');
+        resolve(new File([blob], outName, { type: 'image/jpeg' }));
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 document.getElementById('btnUpload')?.addEventListener('click', async () => {
   if (!currentSlug || !uploadQueue.length) return;
   const pending = uploadQueue.filter(i => i.status === 'pending');
   if (!pending.length) { toast('Aucun fichier en attente'); return; }
 
-  // Upload par lots de 20 fichiers
   const BATCH = 5;
   let totalUploaded = 0;
 
@@ -277,8 +302,11 @@ document.getElementById('btnUpload')?.addEventListener('click', async () => {
     batch.forEach(item => { item.status = 'uploading'; });
     renderQueue();
 
+    // Compression côté client avant envoi (5-6 Mo → ~0.5-1 Mo)
+    const compressed = await Promise.all(batch.map(item => compressImage(item.file)));
+
     const form = new FormData();
-    batch.forEach(item => form.append('photos', item.file));
+    compressed.forEach((f, idx) => form.append('photos', f, batch[idx].file.name));
 
     try {
       const res = await fetch(`/api/events/${currentSlug}/photos`, { method: 'POST', body: form });
