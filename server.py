@@ -237,31 +237,43 @@ def api_delete_photo(slug, filename):
 
 @app.route('/api/events/<slug>/generate', methods=['POST'])
 def api_generate(slug):
-    event_dir  = EVENTS_DIR / slug
-    if not event_dir.exists():
-        abort(404)
+    try:
+        ensure_event_dirs(slug)
+        event_dir  = EVENTS_DIR / slug
+        if not event_dir.exists():
+            return jsonify({'error': f"Événement '{slug}' introuvable", 'photoCount': 0}), 404
 
-    photos_dir = str(event_dir / 'photos')
-    json_out   = str(event_dir / 'photos.json')
-    py         = sys.executable
+        photos_dir = str(event_dir / 'photos')
+        json_out   = str(event_dir / 'photos.json')
+        py         = sys.executable
+        script_thumbs = str(SHARED_DIR / 'generate_thumbnails.py')
+        script_json   = str(SHARED_DIR / 'generate_json.py')
 
-    res_thumbs = subprocess.run(
-        [py, str(SHARED_DIR / 'generate_thumbnails.py'), '--photos-dir', photos_dir],
-        capture_output=True, text=True, cwd=str(BASE_DIR)
-    )
-    res_json = subprocess.run(
-        [py, str(SHARED_DIR / 'generate_json.py'),
-         '--photos-dir', photos_dir, '--output', json_out],
-        capture_output=True, text=True, cwd=str(BASE_DIR)
-    )
+        if not Path(script_thumbs).exists():
+            return jsonify({'error': f"Script introuvable : {script_thumbs}", 'photoCount': 0}), 500
+        if not Path(script_json).exists():
+            return jsonify({'error': f"Script introuvable : {script_json}", 'photoCount': 0}), 500
 
-    count = photo_count(slug)
-    return jsonify({
-        'photoCount': count,
-        'thumbnails': res_thumbs.stdout,
-        'json':       res_json.stdout,
-        'errors':     (res_thumbs.stderr + res_json.stderr).strip() or None
-    })
+        res_thumbs = subprocess.run(
+            [py, script_thumbs, '--photos-dir', photos_dir],
+            capture_output=True, text=True, cwd=str(BASE_DIR), timeout=280
+        )
+        res_json = subprocess.run(
+            [py, script_json, '--photos-dir', photos_dir, '--output', json_out],
+            capture_output=True, text=True, cwd=str(BASE_DIR), timeout=60
+        )
+
+        count = photo_count(slug)
+        return jsonify({
+            'photoCount': count,
+            'thumbnails': res_thumbs.stdout,
+            'json':       res_json.stdout,
+            'errors':     (res_thumbs.stderr + res_json.stderr).strip() or None,
+        })
+    except subprocess.TimeoutExpired as e:
+        return jsonify({'error': f"Timeout : {e}", 'photoCount': 0}), 500
+    except Exception as e:
+        return jsonify({'error': str(e), 'photoCount': 0}), 500
 
 
 # ─── API : Fichiers bruts de l'événement (pour l'app publique) ────────────────

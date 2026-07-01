@@ -317,16 +317,27 @@ document.getElementById('btnGenerate')?.addEventListener('click', async () => {
 
   try {
     const res  = await fetch(`/api/events/${currentSlug}/generate`, { method: 'POST' });
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch {
+      log.textContent += `\n✕ Réponse non-JSON (HTTP ${res.status}):\n${text.slice(0, 500)}`;
+      toast('Erreur serveur — voir le log');
+      return;
+    }
+    if (!res.ok || data.error) {
+      log.textContent += `\n✕ Erreur (HTTP ${res.status}): ${data.error || 'inconnue'}`;
+      toast('Erreur lors de la génération');
+      return;
+    }
     log.textContent += (data.thumbnails || '') + (data.json || '');
     if (data.errors) log.textContent += `\n⚠️  Erreurs :\n${data.errors}`;
     log.textContent += `\n✓ Terminé : ${data.photoCount} photo(s) indexées`;
     document.getElementById('photoCountEl').textContent = data.photoCount;
     toast(`Génération terminée : ${data.photoCount} photos`);
     loadPhotoPreview(currentSlug);
-  } catch {
-    log.textContent += '\n✕ Erreur lors de la génération';
-    toast('Erreur lors de la génération');
+  } catch (err) {
+    log.textContent += `\n✕ Erreur réseau : ${err.message}`;
+    toast('Erreur réseau lors de la génération');
   } finally {
     btn.textContent = '⚡ Générer thumbnails + photos.json';
     btn.disabled = false;
