@@ -20,16 +20,16 @@ events/*/photos/*.tiff
 events/*/photos/*.tif
 events/*/photos/thumbs/
 
-# Ancienne structure (racine)
+# Ancienne structure (racine uniquement)
 photos/
-style.css
-app.js
-index.html
-photos.json
-generate_json.py
-generate_thumbnails.py
-migrate_mae.py
-reset.py
+/style.css
+/app.js
+/index.html
+/photos.json
+/generate_json.py
+/generate_thumbnails.py
+/migrate_mae.py
+/reset.py
 
 # Logs
 *.log

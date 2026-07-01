@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Album Soirée</title>
+  <link rel="stylesheet" href="/admin/css/admin.css">
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">📷</span>
+      <span class="logo-text">Photo Soirée</span>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-btn active" data-section="events">
+        <span class="nav-icon">🎉</span> Soirées
+      </button>
+      <button class="nav-btn" data-section="new">
+        <span class="nav-icon">➕</span> Nouvelle soirée
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <span id="eventCount">0 soirée</span>
+    </div>
+  </aside>
+
+  <!-- CONTENU -->
+  <main class="main-content">
+
+    <!-- SECTION : LISTE DES SOIRÉES -->
+    <section id="section-events" class="section active">
+      <div class="section-header">
+        <h1>Mes soirées</h1>
+        <button class="btn btn-primary" id="btnRefresh">↻ Actualiser</button>
+      </div>
+      <div class="events-grid" id="eventsGrid">
+        <div class="loading-card">Chargement…</div>
+      </div>
+    </section>
+
+    <!-- SECTION : NOUVELLE SOIRÉE -->
+    <section id="section-new" class="section">
+      <div class="section-header">
+        <h1>Créer une nouvelle soirée</h1>
+      </div>
+      <form id="createForm" class="form-card">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Titre *</label>
+            <input type="text" id="newTitle" placeholder="Anniversaire 18 ans Maé" required maxlength="80">
+          </div>
+          <div class="form-group">
+            <label>Sous-titre</label>
+            <input type="text" id="newSubtitle" placeholder="22 février 2025" maxlength="80">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Slug (URL) *</label>
+            <div class="input-prefix-wrap">
+              <span class="input-prefix">/events/</span>
+              <input type="text" id="newSlug" placeholder="mae-18ans-2025" required maxlength="40" pattern="[a-z0-9\-]+" title="Lettres minuscules, chiffres et tirets uniquement">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="newDate">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Code PIN (4 chiffres)</label>
+            <input type="text" id="newPin" placeholder="1234" maxlength="6" pattern="[0-9]+" value="1234">
+          </div>
+          <div class="form-group">
+            <label>Firebase databaseURL</label>
+            <input type="url" id="newFirebaseUrl" placeholder="https://monprojet-default-rtdb.firebaseio.com">
+          </div>
+        </div>
+        <div class="form-group firebase-extra" style="display:none" id="firebaseFields">
+          <label>Firebase API Key</label>
+          <input type="text" id="newFirebaseKey" placeholder="AIza…">
+          <label style="margin-top:8px">Firebase Project ID</label>
+          <input type="text" id="newFirebaseProject" placeholder="monprojet">
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary btn-lg">Créer la soirée 🎉</button>
+        </div>
+        <p id="createMsg" class="form-msg"></p>
+      </form>
+    </section>
+
+    <!-- SECTION : DÉTAIL SOIRÉE -->
+    <section id="section-detail" class="section">
+      <div class="section-header">
+        <button class="btn btn-ghost" id="btnBackEvents">← Retour</button>
+        <h1 id="detailTitle">Soirée</h1>
+        <div class="header-actions">
+          <a class="btn btn-ghost" id="detailViewLink" href="#" target="_blank">Voir l'album ↗</a>
+          <button class="btn btn-danger btn-sm" id="btnDeleteEvent">Supprimer</button>
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <!-- Config -->
+        <div class="card">
+          <h2 class="card-title">⚙️ Configuration</h2>
+          <form id="editForm" class="form-inner">
+            <div class="form-group">
+              <label>Titre</label>
+              <input type="text" id="editTitle" maxlength="80">
+            </div>
+            <div class="form-group">
+              <label>Sous-titre</label>
+              <input type="text" id="editSubtitle" maxlength="80">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="editDate">
+              </div>
+              <div class="form-group">
+                <label>PIN</label>
+                <input type="text" id="editPin" maxlength="6" pattern="[0-9]+">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Firebase databaseURL</label>
+              <input type="url" id="editFirebaseUrl">
+            </div>
+            <div class="form-group">
+              <label>Firebase API Key</label>
+              <input type="text" id="editFirebaseKey">
+            </div>
+            <div class="form-group">
+              <label>Firebase Project ID</label>
+              <input type="text" id="editFirebaseProject">
+            </div>
+            <button type="submit" class="btn btn-primary">Sauvegarder</button>
+            <p id="editMsg" class="form-msg"></p>
+          </form>
+        </div>
+
+        <!-- Photos -->
+        <div class="card">
+          <h2 class="card-title">📸 Photos</h2>
+          <div class="photos-info" id="photosInfo">
+            <div class="stat-pill"><span id="photoCountEl">0</span> photos</div>
+          </div>
+
+          <div class="upload-zone" id="adminDropzone">
+            <input type="file" id="adminUploadInput" accept="image/*,.heic,.heif" multiple style="display:none">
+            <div class="upload-zone-inner">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <p>Glisse des photos ici<br><span>ou clique pour sélectionner</span></p>
+            </div>
+          </div>
+
+          <div class="upload-queue" id="uploadQueue" style="display:none">
+            <div class="upload-queue-header">
+              <span id="queueCount">0 fichier(s) sélectionné(s)</span>
+              <button class="btn btn-ghost btn-sm" id="btnClearQueue">Vider</button>
+            </div>
+            <div class="queue-list" id="queueList"></div>
+            <button class="btn btn-primary btn-full" id="btnUpload">Uploader ↑</button>
+          </div>
+
+          <div class="actions-generate">
+            <button class="btn btn-secondary btn-full" id="btnGenerate">⚡ Générer thumbnails + photos.json</button>
+            <p class="generate-hint">À faire après chaque ajout ou suppression de photos</p>
+          </div>
+
+          <div id="generateLog" class="generate-log" style="display:none"></div>
+        </div>
+
+        <!-- Aperçu photos -->
+        <div class="card card-wide">
+          <div class="card-title-row">
+            <h2 class="card-title">🖼 Aperçu des photos</h2>
+            <button class="btn btn-ghost btn-sm" id="btnReloadPhotos">↻</button>
+          </div>
+          <div class="photos-preview-grid" id="photosPreviewGrid">
+            <p class="empty-photos">Aucune photo chargée</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- TOAST -->
+  <div id="adminToast" class="admin-toast hidden"></div>
+
+  <!-- MODAL CONFIRM -->
+  <div id="confirmModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <h3 id="confirmTitle">Confirmer</h3>
+      <p id="confirmText"></p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="confirmCancel">Annuler</button>
+        <button class="btn btn-danger" id="confirmOk">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/admin/js/admin.js"></script>
+</body>
+</html>
