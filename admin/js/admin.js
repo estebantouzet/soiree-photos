@@ -269,7 +269,7 @@ document.getElementById('btnUpload')?.addEventListener('click', async () => {
   if (!pending.length) { toast('Aucun fichier en attente'); return; }
 
   // Upload par lots de 20 fichiers
-  const BATCH = 20;
+  const BATCH = 5;
   let totalUploaded = 0;
 
   for (let i = 0; i < pending.length; i += BATCH) {
