@@ -83,8 +83,7 @@ function initGyroscopeParallax() {
   if (!bg) return;
   const { photos } = state;
   if (photos.length > 0) {
-    // fond géré par le canvas bokeh — on garde juste le parallaxe gyroscope
-    bg.style.backgroundImage = 'none';
+    bg.style.backgroundImage = `url('${encodeURI(photos[0].thumb || photos[0].src)}')`;
   }
   if (/iPad|iPhone|iPod/.test(navigator.userAgent) && typeof DeviceOrientationEvent?.requestPermission === 'function') {
     document.querySelector('.welcome-btn')?.addEventListener('click', async () => {
