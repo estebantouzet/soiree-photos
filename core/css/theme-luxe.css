@@ -176,23 +176,23 @@ body {
   height: 120%;
   background-size: cover;
   background-position: center;
-  filter: blur(40px) brightness(1.8) saturate(0.4);
+  filter: blur(40px) brightness(1.6) saturate(1.2) sepia(0.45);
   z-index: 0;
 }
 
-/* Voile blanc pour effet dépoli lumineux */
+/* Voile doré pour effet dépoli chaud */
 .welcome-screen::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(255,255,255,0.38);
+  background: rgba(212, 168, 80, 0.32);
   z-index: 1;
   pointer-events: none;
 }
 
 /* Transition cinématique : scale + blur + fade */
 .welcome-screen {
-  background: #e8e4e0;
+  background: #c9a84c;
   transition: opacity 0.65s var(--ease-luxe),
               filter 0.65s var(--ease-luxe),
               transform 0.65s var(--ease-luxe);
