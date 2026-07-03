@@ -68,63 +68,14 @@ function initWelcomeCanvas() {
   const canvas = document.getElementById('welcomeCanvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-
   function resize() {
     canvas.width  = window.innerWidth;
     canvas.height = window.innerHeight;
+    ctx.fillStyle = '#080808';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
   resize();
   window.addEventListener('resize', resize);
-
-  const N = 18;
-  const particles = Array.from({ length: N }, () => ({
-    x:     Math.random(),
-    y:     Math.random(),
-    r:     18 + Math.random() * 40,
-    dx:    (Math.random() - 0.5) * 0.00022,
-    dy:    (Math.random() - 0.5) * 0.00022,
-    hue:   28 + Math.random() * 24,
-    sat:   55 + Math.random() * 20,
-    alpha: 0.55 + Math.random() * 0.45,
-  }));
-
-  let animId;
-  function draw() {
-    const W = canvas.width, H = canvas.height;
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#050505';
-    ctx.fillRect(0, 0, W, H);
-
-    ctx.globalCompositeOperation = 'screen';
-    particles.forEach(p => {
-      const px = p.x * W, py = p.y * H;
-      const grad = ctx.createRadialGradient(px, py, 0, px, py, p.r);
-      grad.addColorStop(0,   `hsla(${p.hue},${p.sat}%,72%,${p.alpha})`);
-      grad.addColorStop(0.4, `hsla(${p.hue},${p.sat}%,55%,${p.alpha * 0.4})`);
-      grad.addColorStop(1,   `hsla(${p.hue},${p.sat}%,40%,0)`);
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(px, py, p.r, 0, Math.PI * 2);
-      ctx.fill();
-
-      p.x += p.dx; p.y += p.dy;
-      if (p.x < 0) p.x = 1; if (p.x > 1) p.x = 0;
-      if (p.y < 0) p.y = 1; if (p.y > 1) p.y = 0;
-    });
-    ctx.globalCompositeOperation = 'source-over';
-
-    animId = requestAnimationFrame(draw);
-  }
-  draw();
-
-  const screen = document.getElementById('welcome-screen');
-  const obs = new MutationObserver(() => {
-    if (screen.classList.contains('hidden')) {
-      cancelAnimationFrame(animId);
-      obs.disconnect();
-    }
-  });
-  obs.observe(screen, { attributes: true, attributeFilter: ['class'] });
 }
 
 function initGyroscopeParallax() {
