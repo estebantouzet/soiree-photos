@@ -744,19 +744,19 @@ body:not(.splash-open) .app {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-top: 1px solid rgba(255,255,255,0.08);
-  padding: 10px 0 calc(env(safe-area-inset-bottom, 0px) + 10px);
+  padding: 6px 0 calc(env(safe-area-inset-bottom, 0px) + 6px);
 }
 
 .lb-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  padding: 6px 18px;
+  gap: 3px;
+  padding: 4px 14px;
   background: transparent;
   border: none;
   color: rgba(255,255,255,0.82);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
@@ -764,7 +764,7 @@ body:not(.splash-open) .app {
   transition: color 0.15s ease;
 }
 .lb-btn:hover { background: transparent; border-color: transparent; color: #fff; transform: none; }
-.lb-btn svg { width: 26px; height: 26px; flex-shrink: 0; }
+.lb-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
 .lb-btn span { display: block; }
 
 /* Favori actif */
