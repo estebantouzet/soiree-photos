@@ -16,7 +16,7 @@ import { render, getFiltered, setFilter, toggleSort, toggleGrid, applyGrid, togg
 import { openLightbox, closeLightbox, prevPhoto, nextPhoto, handleLightboxClick,
          toggleLightboxFav, updateLbFavBtn, downloadSingle, launchSlideshow,
          startSlideshow, stopSlideshow, toggleSlideshowPause, setSlideshowSpeed,
-         initLightboxSwipe }        from './lightbox.js';
+         toggleDiaporama, initLightboxSwipe }  from './lightbox.js';
 import { initStory, openGlobalStory, openFilteredStory, closeStory } from './story.js';
 import { initFilmStrip, openFilmStrip, closeFilmStrip, filmStripPrev, filmStripNext, onFilmImageLoad } from './film-strip.js';
 import { initGuestbook, loadReactionsForPhoto, loadTagsForPhoto, toggleReaction,
@@ -141,7 +141,7 @@ Object.assign(window, {
   // Lightbox
   openLightbox, closeLightbox, prevPhoto, nextPhoto, handleLightboxClick,
   toggleLightboxFav, updateLbFavBtn, downloadSingle,
-  launchSlideshow, toggleSlideshowPause, setSlideshowSpeed,
+  launchSlideshow, toggleSlideshowPause, setSlideshowSpeed, toggleDiaporama,
   // Welcome
   enterGallery, closeWelcomeScreen,
   // Story

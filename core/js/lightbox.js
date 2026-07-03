@@ -46,13 +46,17 @@ export async function openLightbox(id, direction = null) {
 
   updateLbFavBtn();
 
+  // Compteur "X / N"
+  const list = getFiltered();
+  const idx  = list.findIndex(ph => ph.id === id);
+  const counter = document.getElementById('lbCounter');
+  if (counter) counter.textContent = idx !== -1 ? `${idx + 1} / ${list.length}` : '';
+
   // Réactions + tags chargés par firebase.js via window hooks
   window.loadReactionsForPhoto?.(id);
   window.loadTagsForPhoto?.(id);
 
   // Précharge adjacents
-  const list = getFiltered();
-  const idx  = list.findIndex(ph => ph.id === id);
   if (idx !== -1) {
     [-1, 1].forEach(off => {
       const adj = list[(idx + off + list.length) % list.length];
@@ -149,7 +153,6 @@ export function startSlideshow() {
   openLightbox(list[0].id);
   slideshowPaused = false;
   updatePauseButton();
-  document.getElementById('lbPauseBtn').style.display = 'inline-flex';
   document.getElementById('slideshowSpeedControls').style.display = 'flex';
   if (slideshowInterval) clearInterval(slideshowInterval);
   slideshowInterval = setInterval(nextSlide, SLIDESHOW_DELAY);
@@ -159,10 +162,18 @@ export function startSlideshow() {
 export function stopSlideshow() {
   if (slideshowInterval) { clearInterval(slideshowInterval); slideshowInterval = null; }
   slideshowPaused = false;
-  document.getElementById('lbPauseBtn')?.style && (document.getElementById('lbPauseBtn').style.display = 'none');
   document.getElementById('slideshowSpeedControls')?.style && (document.getElementById('slideshowSpeedControls').style.display = 'none');
+  updatePauseButton();
   try { document.exitFullscreen?.() || document.webkitExitFullscreen?.(); } catch {}
   stopKenBurns();
+}
+
+export function toggleDiaporama() {
+  if (!slideshowInterval) {
+    startSlideshow();
+  } else {
+    toggleSlideshowPause();
+  }
 }
 
 function nextSlide() {
@@ -183,11 +194,14 @@ function updatePauseButton() {
   const icon  = document.getElementById('lbPauseIcon');
   const label = document.getElementById('lbPauseLabel');
   if (!icon || !label) return;
-  if (slideshowPaused) {
-    icon.innerHTML  = '<polygon points="5 3 19 12 5 21 5 3"/>';
+  if (!slideshowInterval && !slideshowPaused) {
+    icon.innerHTML    = '<polygon points="5 3 19 12 5 21 5 3"/>';
+    label.textContent = 'Diaporama';
+  } else if (slideshowPaused) {
+    icon.innerHTML    = '<polygon points="5 3 19 12 5 21 5 3"/>';
     label.textContent = 'Lecture';
   } else {
-    icon.innerHTML  = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+    icon.innerHTML    = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
     label.textContent = 'Pause';
   }
 }

@@ -185,19 +185,28 @@
   <!-- LIGHTBOX -->
   <div class="lightbox" id="lightbox" onclick="handleLightboxClick(event)">
     <div class="lightbox-bg" id="lightboxBg" aria-hidden="true"></div>
-    <div class="lightbox-inner">
+
+    <!-- Barre supérieure : fermer + compteur -->
+    <div class="lb-topbar">
       <button class="lightbox-close" id="lbClose" onclick="closeLightbox()">✕</button>
-      <div class="lb-progress-bar" id="lbProgressBar"><div class="lb-progress-fill" id="lbProgressFill"></div></div>
+      <span class="lb-counter" id="lbCounter"></span>
+      <div class="lb-topbar-spacer"></div>
+    </div>
+
+    <div class="lb-progress-bar" id="lbProgressBar"><div class="lb-progress-fill" id="lbProgressFill"></div></div>
+
+    <!-- Contenu principal -->
+    <div class="lightbox-inner">
       <div class="lb-img-wrapper" id="lbImgWrapper">
         <img id="lbImg" src="" alt=""/>
         <div class="lb-nav-container">
-        <button class="lb-nav lb-prev" onclick="prevPhoto()">‹</button>
-        <button class="lb-nav lb-next" onclick="nextPhoto()">›</button>
+          <button class="lb-nav lb-prev" onclick="prevPhoto()">‹</button>
+          <button class="lb-nav lb-next" onclick="nextPhoto()">›</button>
         </div>
       </div>
       <div class="lightbox-meta">
-        <p class="lightbox-date" id="lbDate"></p>
         <p class="lightbox-time" id="lbTime"></p>
+        <p class="lightbox-date" id="lbDate"></p>
       </div>
       <div class="slideshow-speed-controls" id="slideshowSpeedControls" style="display:none">
         <span class="speed-label">Vitesse :</span>
@@ -221,42 +230,39 @@
           <span class="fan-trigger-total" id="fanTriggerTotal"></span>
         </button>
       </div>
-      <div class="lightbox-actions">
-        <button class="lb-btn fav-lb" id="lbFavBtn" onclick="toggleLightboxFav()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="lbFavIcon">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-          </svg>
-          <span>Favori</span>
-        </button>
-        <button class="lb-btn" id="lbTagBtn" onclick="toggleTagMode()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
-            <line x1="7" y1="7" x2="7.01" y2="7"/>
-          </svg>
-          <span>Taguer</span>
-        </button>
-        <button class="lb-btn" onclick="shareSinglePhoto()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-          </svg>
-          <span>Partager</span>
-        </button>
-        <button class="lb-btn slideshow-pause" id="lbPauseBtn" onclick="toggleSlideshowPause()" style="display:none">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="lbPauseIcon">
-            <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
-          </svg>
-          <span id="lbPauseLabel">Pause</span>
-        </button>
-        <button class="lb-btn" onclick="downloadSingle()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          <span>Télécharger</span>
-        </button>
-      </div>
       <div class="lb-tags-overlay" id="lbTagsOverlay"></div>
+    </div>
+
+    <!-- Barre iOS bas -->
+    <div class="lightbox-actions">
+      <button class="lb-btn fav-lb" id="lbFavBtn" onclick="toggleLightboxFav()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" id="lbFavIcon">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+        <span>Favori</span>
+      </button>
+      <button class="lb-btn" id="lbPauseBtn" onclick="toggleDiaporama()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" id="lbPauseIcon">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        <span id="lbPauseLabel">Diaporama</span>
+      </button>
+      <button class="lb-btn" onclick="shareSinglePhoto()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+          <polyline points="16 6 12 2 8 6"/>
+          <line x1="12" y1="2" x2="12" y2="15"/>
+        </svg>
+        <span>Partager</span>
+      </button>
+      <button class="lb-btn" onclick="downloadSingle()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Enregistrer</span>
+      </button>
     </div>
   </div>
 
