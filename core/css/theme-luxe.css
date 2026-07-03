@@ -287,10 +287,15 @@ body:not(.splash-open) .app {
 
 .welcome-btn:active { transform: translateY(0); }
 
-.story-btn {
-  background: rgba(255,255,255,0.55);
-  border: 1px solid rgba(0,0,0,0.1);
-  color: #111;
+.welcome-content {
+  position: relative;
+  z-index: 2;
+}
+
+#story-open {
+  background: rgba(255,255,255,0.55) !important;
+  border: 1px solid rgba(0,0,0,0.1) !important;
+  color: #111 !important;
 }
 
 /* ── Story Prompt Modal ─────────────────────────────────── */
