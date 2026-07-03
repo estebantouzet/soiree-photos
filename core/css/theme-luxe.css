@@ -560,7 +560,7 @@ body:not(.splash-open) .app {
 
 /* ── Scroll-to-top ──────────────────────────────────────── */
 .scroll-top {
-  border-radius: 2px;
+  border-radius: 50px;
   border: 1px solid var(--border-strong);
   background: var(--surface);
   box-shadow: none;
@@ -787,7 +787,7 @@ body:not(.splash-open) .app {
 .share-btn {
   background: transparent;
   border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 2px;
+  border-radius: 50px;
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.2em;
@@ -803,6 +803,11 @@ body:not(.splash-open) .app {
   border-color: rgba(255,255,255,0.25);
   color: rgba(255,255,255,0.85);
   transform: none;
+}
+
+.upload-fab {
+  right: 16px;
+  bottom: 24px;
 }
 
 /* ── Toast ──────────────────────────────────────────────── */
